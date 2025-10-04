@@ -1,2 +1,2 @@
-class SudokuInvalidDimensionException(Exception):
+class SudokuInvalidDimensionsException(Exception):
     pass

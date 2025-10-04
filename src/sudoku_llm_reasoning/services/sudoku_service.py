@@ -1,0 +1,2 @@
+class SudokuService:
+    pass
