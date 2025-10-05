@@ -1,5 +1,6 @@
 import math
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
+from itertools import product
 from z3 import Int, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
 
@@ -13,6 +14,7 @@ class Sudoku:
 
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(row) for row in grid)
         self.__solutions: Optional[List[Sudoku]] = None
+        self.__naked_singles: Optional[List[Sudoku]] = None
 
     def __str__(self) -> str:
         return "\n".join(" ".join(str(num) for num in row) for row in self.__grid)
@@ -29,6 +31,12 @@ class Sudoku:
         if self.__solutions is None:
             self.__solutions = self.__solve_all()
         return self.__solutions
+
+    @property
+    def naked_singles(self) -> List["Sudoku"]:
+        if self.__naked_singles is None:
+            self.__naked_singles = self.__solve_all_naked_singles()
+        return self.__naked_singles
 
     def is_empty(self) -> bool:
         return all(all(cell == 0 for cell in row) for row in self.__grid)
@@ -102,10 +110,26 @@ class Sudoku:
 
         return solutions
 
-sudoku = Sudoku([
-    [0, 0, 0, 4],
-    [0, 0, 0, 0],
-    [2, 0, 0, 3],
-    [4, 0, 1, 2]
-])
-print(sudoku.solutions)
+    def __solve_all_naked_singles(self) -> List["Sudoku"]:
+        n: int = len(self.__grid)
+        n_isqrt: int = math.isqrt(n)
+
+        naked_singles: List[Sudoku] = []
+        for i, j in product(range(n), range(n)):
+            if self.__grid[i][j] != 0:
+                continue
+
+            row: Set[int] = set(self.__grid[i])
+            column: Set[int] = {self.__grid[k][j] for k in range(n)}
+
+            i0 = (i // n_isqrt) * n_isqrt
+            j0 = (j // n_isqrt) * n_isqrt
+            subgrid: Set[int] = {self.__grid[i0 + di][j0 + dj] for di in range(n_isqrt) for dj in range(n_isqrt)}
+            candidates: Set[int] = set(range(1, n + 1)) - row - column - subgrid
+
+            if len(candidates) == 1:
+                grid: List[List[int]] = [list(row) for row in self.__grid]
+                grid[i][j] = candidates.pop()
+                naked_singles.append(Sudoku(grid))
+
+        return naked_singles
