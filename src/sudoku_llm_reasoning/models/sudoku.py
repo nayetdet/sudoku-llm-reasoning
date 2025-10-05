@@ -1,6 +1,6 @@
 import math
+import itertools
 from typing import List, Tuple, Optional, Set
-from itertools import product
 from z3 import Int, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
 
@@ -15,6 +15,10 @@ class Sudoku:
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(row) for row in grid)
         self.__solutions: Optional[List[Sudoku]] = None
         self.__naked_singles: Optional[List[Sudoku]] = None
+        self.__hidden_singles: Optional[List[Sudoku]] = None
+
+    def __len__(self) -> int:
+        return len(self.__grid)
 
     def __str__(self) -> str:
         return "\n".join(" ".join(str(num) for num in row) for row in self.__grid)
@@ -38,6 +42,20 @@ class Sudoku:
             self.__naked_singles = self.__solve_all_naked_singles()
         return self.__naked_singles
 
+    @property
+    def hidden_singles(self) -> List["Sudoku"]:
+        if self.__hidden_singles is None:
+            self.__hidden_singles = self.__solve_all_hidden_singles()
+        return self.__hidden_singles
+
+    @property
+    def singles(self) -> List["Sudoku"]:
+        return self.hidden_singles
+
+    def sizes(self) -> Tuple[int, int]:
+        n: int = len(self)
+        return n, math.isqrt(n)
+
     def is_empty(self) -> bool:
         return all(all(cell == 0 for cell in row) for row in self.__grid)
 
@@ -50,9 +68,49 @@ class Sudoku:
     def is_solved(self) -> bool:
         return self.is_full() and self.is_solvable()
 
+    def naked_candidates(self, i: int, j: int) -> Set[int]:
+        if self.__grid[i][j] != 0:
+            return set()
+
+        n, n_isqrt = self.sizes()
+        row: Set[int] = set(self.__grid[i])
+        column: Set[int] = {self.__grid[k][j] for k in range(n)}
+
+        i0 = (i // n_isqrt) * n_isqrt
+        j0 = (j // n_isqrt) * n_isqrt
+        subgrid: Set[int] = {
+            self.__grid[i0 + di][j0 + dj]
+            for di in range(n_isqrt)
+            for dj in range(n_isqrt)
+        }
+
+        return set(range(1, n + 1)) - row - column - subgrid
+
+    def hidden_candidates(self, i: int, j: int) -> Set[int]:
+        naked_singles = self.naked_candidates(i, j)
+        if not naked_singles:
+            return set()
+
+        n, n_isqrt = self.sizes()
+        i0 = (i // n_isqrt) * n_isqrt
+        j0 = (j // n_isqrt) * n_isqrt
+
+        return {
+            x for x in naked_singles
+            if (
+                all(x not in self.naked_candidates(i, jj) for jj in range(n) if jj != j)
+                or all(x not in self.naked_candidates(ii, j) for ii in range(n) if ii != i)
+                or all(
+                    x not in self.naked_candidates(i0 + di, j0 + dj)
+                    for di in range(n_isqrt) for dj in range(n_isqrt)
+                    if (i0 + di, j0 + dj) != (i, j)
+                )
+            )
+        }
+
     def __solve_all(self) -> List["Sudoku"]:
         # Variables: Integer variable for each cell of the Sudoku grid
-        n: int = len(self.__grid)
+        n, n_isqrt = self.sizes()
         cells: List[List[Int]] = [
             [Int(f"x_{i + 1}_{j + 1}") for j in range(n)]
             for i in range(n)
@@ -78,7 +136,6 @@ class Sudoku:
         ]
 
         # Rule: Every digit has to be placed exactly once in each isqrt(n) x isqrt(n) subgrid
-        n_isqrt: int = math.isqrt(n)
         subgrid_constraints = [
             Distinct([cells[i0 + i][j0 + j] for i in range(n_isqrt) for j in range(n_isqrt)])
             for i0 in range(0, n, n_isqrt)
@@ -111,25 +168,25 @@ class Sudoku:
         return solutions
 
     def __solve_all_naked_singles(self) -> List["Sudoku"]:
-        n: int = len(self.__grid)
-        n_isqrt: int = math.isqrt(n)
-
+        n = len(self)
         naked_singles: List[Sudoku] = []
-        for i, j in product(range(n), range(n)):
-            if self.__grid[i][j] != 0:
-                continue
-
-            row: Set[int] = set(self.__grid[i])
-            column: Set[int] = {self.__grid[k][j] for k in range(n)}
-
-            i0 = (i // n_isqrt) * n_isqrt
-            j0 = (j // n_isqrt) * n_isqrt
-            subgrid: Set[int] = {self.__grid[i0 + di][j0 + dj] for di in range(n_isqrt) for dj in range(n_isqrt)}
-            candidates: Set[int] = set(range(1, n + 1)) - row - column - subgrid
-
+        for i, j in itertools.product(range(n), range(n)):
+            candidates: Set[int] = self.naked_candidates(i, j)
             if len(candidates) == 1:
                 grid: List[List[int]] = [list(row) for row in self.__grid]
                 grid[i][j] = candidates.pop()
                 naked_singles.append(Sudoku(grid))
 
         return naked_singles
+
+    def __solve_all_hidden_singles(self) -> List["Sudoku"]:
+        n = len(self)
+        hidden_singles: List[Sudoku] = []
+        for i, j in itertools.product(range(n), range(n)):
+            candidates: Set[int] = self.hidden_candidates(i, j)
+            if len(candidates) == 1:
+                grid: List[List[int]] = [list(row) for row in self.__grid]
+                grid[i][j] = candidates.pop()
+                hidden_singles.append(Sudoku(grid))
+
+        return hidden_singles
