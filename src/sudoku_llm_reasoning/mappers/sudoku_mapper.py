@@ -6,8 +6,8 @@ class SudokuMapper:
     def to_llm_step_schema(cls, data: Dict[str, Any]) -> SudokuLLMStepSchema:
         return SudokuLLMStepSchema(
             step=data.get("step"),
-            cell=data.get("cell"),
             value=data.get("value"),
+            position=data.get("position"),
             candidates_before=data.get("candidates_before"),
             explanation=data.get("explanation")
         )
@@ -15,7 +15,7 @@ class SudokuMapper:
     @classmethod
     def to_llm_solution_schema(cls, data: Dict[str, Any]) -> SudokuLLMSolutionSchema:
         return SudokuLLMSolutionSchema(
-            steps=[cls.to_llm_step_schema(x) for x in data.get("steps")],
+            steps=tuple(cls.to_llm_step_schema(x) for x in data.get("steps")),
             final_grid=data.get("final_grid"),
             unique_solution=data.get("unique_solution")
         )
