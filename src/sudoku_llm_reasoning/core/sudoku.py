@@ -93,14 +93,14 @@ class Sudoku:
         return set(range(1, n + 1)) - row - column - subgrid
 
     def hidden_candidates(self, i: int, j: int) -> Set[int]:
-        naked = self.naked_candidates(i, j)
-        if not naked:
+        naked_candidates: Set[int] = self.naked_candidates(i, j)
+        if not naked_candidates:
             return set()
 
         n, n_isqrt = self.sizes()
         i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
         return {
-            x for x in naked
+            x for x in naked_candidates
             if (
                 sum(x in self.naked_candidates(i, jj) for jj in range(n)) == 1
                 or sum(x in self.naked_candidates(ii, j) for ii in range(n)) == 1
