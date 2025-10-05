@@ -1,20 +1,24 @@
 import json
 import textwrap
-from src.sudoku_llm_reasoning.deps.llm_instance import LLMInstance
+import google.generativeai as genai
+from google.generativeai import GenerativeModel
+from src.sudoku_llm_reasoning.core.sudoku import Sudoku
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
-from src.sudoku_llm_reasoning.models.sudoku import Sudoku
-from src.sudoku_llm_reasoning.schemas.sudoku_schemas import LLMSudokuSolutionSchema
+from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
 
-class LLMService:
-    @classmethod
-    def solve_sudoku(cls, sudoku: Sudoku) -> LLMSudokuSolutionSchema:
-        text: str = LLMInstance.get_llm().generate_content(textwrap.dedent(
+class SudokuReasoner:
+    def __init__(self, llm_model: str, llm_api_key: str) -> None:
+        genai.configure(api_key=llm_api_key)
+        self.__llm: GenerativeModel = GenerativeModel(model_name=llm_model)
+
+    def solve(self, sudoku: Sudoku) -> SudokuLLMSolutionSchema:
+        text: str = self.__llm.generate_content(textwrap.dedent(
             f"""
             Resolva este Sudoku e DOCUMENTE TODO O PROCESSO.
-            
+
             Sudoku:
             {sudoku}
-            
+
             Regras para sua resposta (obrigatório):
             1. Retorne **apenas JSON válido** — nada fora do JSON.
             2. Use **indexação começando em 0** para linhas e colunas (notação de matriz).
@@ -31,7 +35,7 @@ class LLMService:
             6. Se o puzzle for **insolúvel**, retorne um JSON com `{{"error": "unsolvable"}}`.
             7. EXPLICAÇÕES devem ser concisas e factuais — **não** escreva seu raciocínio interno longo (nada tipo "estou pensando..."). Frases do tipo “A célula (0,2) só pode ser 3 porque {{razões}}” são perfeitas.
             8. NÃO inclua marcações de código (como ``` ou ```json) — retorne apenas JSON puro.
-            
+
             Formato de saída esperado (exemplo mínimo):
             {{
                 "steps": [
@@ -53,7 +57,7 @@ class LLMService:
               "final_grid": [[1, 2, 3, 4], [3, 4, 2, 1], [2, 1, 4, 3], [4, 3, 1, 2]],
               "unique_solution": true
             }}
-            
+
             Termine a resposta estritamente com esse JSON — sem textos adicionais.
             """
         ).strip()).text

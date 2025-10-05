@@ -168,7 +168,7 @@ class Sudoku:
         return solutions
 
     def __solve_all_naked_singles(self) -> List["Sudoku"]:
-        n = len(self)
+        n: int = len(self)
         naked_singles: List[Sudoku] = []
         for i, j in itertools.product(range(n), range(n)):
             candidates: Set[int] = self.naked_candidates(i, j)
@@ -180,7 +180,7 @@ class Sudoku:
         return naked_singles
 
     def __solve_all_hidden_singles(self) -> List["Sudoku"]:
-        n = len(self)
+        n: int = len(self)
         hidden_singles: List[Sudoku] = []
         for i, j in itertools.product(range(n), range(n)):
             candidates: Set[int] = self.hidden_candidates(i, j)

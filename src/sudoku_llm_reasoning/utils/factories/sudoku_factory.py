@@ -1,2 +1,0 @@
-class SudokuFactory:
-    pass
