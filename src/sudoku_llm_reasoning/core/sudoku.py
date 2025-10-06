@@ -2,7 +2,7 @@ import math
 import itertools
 from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set
-from z3 import Int, And, Or, Distinct, If, Solver, sat
+from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
 
 @dataclass
@@ -85,30 +85,32 @@ class Sudoku:
 
         i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
         subgrid: Set[int] = {
-            self.__grid[i0 + di][j0 + dj]
-            for di in range(n_isqrt)
-            for dj in range(n_isqrt)
+            self.__grid[i0 + ii][j0 + jj]
+            for ii in range(n_isqrt)
+            for jj in range(n_isqrt)
         }
 
         return set(range(1, n + 1)) - row - column - subgrid
 
     def hidden_candidates(self, i: int, j: int) -> Set[int]:
-        naked_candidates: Set[int] = self.naked_candidates(i, j)
-        if not naked_candidates:
-            return set()
-
         n, n_isqrt = self.sizes()
         i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
+        candidates_grid: List[List[Set[int]]] = [
+            [self.naked_candidates(ii, jj) for jj in range(n)]
+            for ii in range(n)
+        ]
+
         return {
-            x for x in naked_candidates
+            x for x in candidates_grid[i][j]
             if (
-                sum(x in self.naked_candidates(i, jj) for jj in range(n)) == 1
-                or sum(x in self.naked_candidates(ii, j) for ii in range(n)) == 1
-                or sum(
-                    x in self.naked_candidates(i0 + di, j0 + dj)
-                    for di in range(n_isqrt)
-                    for dj in range(n_isqrt)
-                ) == 1
+                not any(x in candidates_grid[i][jj] for jj in range(n) if jj != j)
+                or not any(x in candidates_grid[ii][j] for ii in range(n) if ii != i)
+                or not any(
+                    x in candidates_grid[i0 + ii][j0 + jj]
+                    for ii in range(n_isqrt)
+                    for jj in range(n_isqrt)
+                    if (i0 + ii, j0 + jj) != (i, j)
+                )
             )
         }
 
@@ -121,52 +123,52 @@ class Sudoku:
         ]
 
         # Rule: Each cell must contain a digit (1 to n)
-        cell_constraints = [
+        cell_constraints: List[BoolRef] = [
             And(cells[i][j] >= 1, cells[i][j] <= n)
             for i in range(n)
             for j in range(n)
         ]
 
         # Rule: Every digit has to be placed exactly once in each row
-        row_constraints = [
+        row_constraints: List[BoolRef] = [
             Distinct(cells[i])
             for i in range(n)
         ]
 
         # Rule: Every digit has to be placed exactly once in each row
-        column_constraints = [
+        column_constraints: List[BoolRef] = [
             Distinct([cells[i][j] for i in range(n)])
             for j in range(n)
         ]
 
         # Rule: Every digit has to be placed exactly once in each isqrt(n) x isqrt(n) subgrid
-        subgrid_constraints = [
+        subgrid_constraints: List[BoolRef] = [
             Distinct([cells[i0 + i][j0 + j] for i in range(n_isqrt) for j in range(n_isqrt)])
             for i0 in range(0, n, n_isqrt)
             for j0 in range(0, n, n_isqrt)
         ]
 
         # Rule: Pre-fill the cells that already have numbers in the given Sudoku grid
-        instance_constraints = [
+        instance_constraints: List[BoolRef] = [
             If(self.__grid[i][j] == 0, True, cells[i][j] == self.__grid[i][j])
             for i in range(n)
             for j in range(n)
         ]
 
-        solver = Solver()
+        solver: Solver = Solver()
         solver.add(cell_constraints + row_constraints + column_constraints + subgrid_constraints + instance_constraints)
         if solver.check() != sat:
             return ()
 
         solutions: List[Sudoku] = []
         while solver.check() == sat:
-            model = solver.model()
-            solution: List[List[int]] = [
+            model: ModelRef = solver.model()
+            solution_grid: List[List[int]] = [
                 [model.evaluate(cells[i][j]).as_long() for j in range(n)]
                 for i in range(n)
             ]
 
-            solutions.append(Sudoku(solution))
+            solutions.append(Sudoku(solution_grid))
             solver.add(Or([cells[i][j] != model.evaluate(cells[i][j]) for i in range(n) for j in range(n)]))
         return tuple(solutions)
 
