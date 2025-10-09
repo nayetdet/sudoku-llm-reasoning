@@ -100,7 +100,7 @@ class Sudoku:
             for ii in range(n)
         ]
 
-        return {
+        all_hidden_candidates: Set[int] = {
             x for x in candidates_grid[i][j]
             if (
                 not any(x in candidates_grid[i][jj] for jj in range(n) if jj != j)
@@ -113,6 +113,8 @@ class Sudoku:
                 )
             )
         }
+
+        return all_hidden_candidates - candidates_grid[i][j]
 
     def __solve_all(self) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid

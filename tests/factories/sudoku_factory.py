@@ -9,6 +9,9 @@ class SudokuFactory:
     def __init__(self, n: int) -> None:
         self.__empty_sudoku: Sudoku = Sudoku(MatrixUtils.get_empty_matrix(n))
 
+    def get_empty_sudoku(self) -> Sudoku:
+        return self.__empty_sudoku
+
     def get_solved_sudoku(self) -> Sudoku:
         return random.choice(self.__empty_sudoku.solutions)
 
