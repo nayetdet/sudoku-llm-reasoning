@@ -36,60 +36,32 @@ class SudokuFactory:
 
         return Sudoku(sudoku_grid)
 
-    def get_hidden_singles_sudoku(self, prob_zero: float = 0.20) -> Sudoku:
+    def get_hidden_singles_sudoku(self) -> Sudoku:
         sudoku: Sudoku = self.get_solved_sudoku()
-        grid: List[List[int]] = SudokuUtils.get_grid_copy(sudoku)
-        n, b = self.__empty_sudoku.sizes()
+        sudoku_grid: List[List[int]] = SudokuUtils.get_grid_copy(sudoku)
+        n, n_isqrt = self.__empty_sudoku.sizes()
 
-        r, c = MatrixUtils.get_random_position(n)
-        v = grid[r][c]
-        grid[r][c] = 0
+        row_idx, col_idx = MatrixUtils.get_random_position(n)
+        d = sudoku_grid[row_idx][col_idx]
 
-        c_candidates = [j for j in range(n) if j != c]
-        random.shuffle(c_candidates)
-        k = None
-        c2 = None
-        for j in c_candidates:
-            if grid[r][j] != v:
-                k = grid[r][j]
-                c2 = j
-                break
-        if k is None:
-            return Sudoku(SudokuUtils.get_grid_copy(self.get_solved_sudoku()))
+        preserve_type = random.choice(["row", "column", "block"])
 
-        if grid[r][c2] == k:
-            grid[r][c2] = 0
+        if preserve_type == "row": unit_positions: List[Tuple[int, int]] = [(row_idx, j) for j in range(n)]
+        elif preserve_type == "column": unit_positions = [(i, col_idx) for i in range(n)]
+        else:
+            i0 = (row_idx // n_isqrt) * n_isqrt
+            j0 = (col_idx // n_isqrt) * n_isqrt
+            unit_positions = [(i0 + i, j0 + j) for i in range(n_isqrt) for j in range(n_isqrt)]
 
-        r_k = next((i for i in range(n) if grid[i][c] == k), None)
-        if r_k is not None and r_k != r:
-            grid[r_k][c] = 0
+        sudoku_grid[row_idx][col_idx] = 0
 
-        bi = (r // b) * b
-        bj = (c // b) * b
-        pos_k_block: Tuple[int, int] = None
-        for ii in range(bi, bi + b):
-            for jj in range(bj, bj + b):
-                if grid[ii][jj] == k:
-                    pos_k_block = (ii, jj)
-                    break
-            if pos_k_block is not None:
-                break
-        if pos_k_block is not None and pos_k_block != (r, c):
-            i_b, j_b = pos_k_block
-            grid[i_b][j_b] = 0
+        candidates_in_unit = [(i, j) for (i, j) in unit_positions if
+                              not (i == row_idx and j == col_idx) and sudoku_grid[i][j] != d]
+        k_in_unit = max(1, min(len(candidates_in_unit), n_isqrt))
+        for (i, j) in random.sample(candidates_in_unit, k=k_in_unit):
+            sudoku_grid[i][j] = 0
 
-        positions: List[Tuple[int, int]] = [
-            (i, j)
-            for i in range(n)
-            for j in range(n)
-            if grid[i][j] != 0 and grid[i][j] != v and not (i == r and j == c)
-        ]
-        if positions:
-            k_extra = max(0, math.ceil(len(positions) * prob_zero))
-            for (i, j) in random.sample(positions, k=min(k_extra, len(positions))):
-                grid[i][j] = 0
-
-        return Sudoku(grid)
+        return Sudoku(sudoku_grid)
 
     def get_consensus_principle_sudoku(self) -> Sudoku:
         raise NotImplementedError()
