@@ -64,7 +64,37 @@ class SudokuFactory:
         return Sudoku(sudoku_grid)
 
     def get_consensus_principle_sudoku(self) -> Sudoku:
-        raise NotImplementedError()
+        sudoku: Sudoku = self.get_solved_sudoku()
+        sudoku_grid: List[List[int]] = SudokuUtils.get_grid_copy(sudoku)
+        n, n_isqrt = self.__empty_sudoku.sizes()
+        
+        row_idx = random.randint(0, n - 1)
+        
+        start_col = random.randint(0, n - 3)
+        consensus_positions = [
+            (row_idx, start_col),
+            (row_idx, start_col + 1),
+            (row_idx, start_col + 2)
+        ]
+        
+        consensus_values = [sudoku_grid[i][j] for i, j in consensus_positions]
+        
+        for i, j in consensus_positions:
+            sudoku_grid[i][j] = 0
+        
+        for j in range(n):
+            if (row_idx, j) not in consensus_positions:
+                if sudoku_grid[row_idx][j] in consensus_values:
+                    if random.random() < 0.5:
+                        sudoku_grid[row_idx][j] = 0
+        
+        for i in range(n):
+            if i != row_idx:
+                for j in range(n):
+                    if random.random() < 0.3 and sudoku_grid[i][j] != 0:
+                        sudoku_grid[i][j] = 0
+        
+        return Sudoku(sudoku_grid)
 
     def get_unsolvable_sudoku(self) -> Sudoku:
         raise NotImplementedError()
