@@ -114,7 +114,7 @@ class Sudoku:
             )
         }
 
-        return all_hidden_candidates - candidates_grid[i][j]
+        return all_hidden_candidates & candidates_grid[i][j]
 
     def __solve_all(self) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid

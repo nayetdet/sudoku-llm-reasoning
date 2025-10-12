@@ -36,8 +36,60 @@ class SudokuFactory:
 
         return Sudoku(sudoku_grid)
 
-    def get_hidden_singles_sudoku(self) -> Sudoku:
-        raise NotImplementedError()
+    def get_hidden_singles_sudoku(self, prob_zero: float = 0.20) -> Sudoku:
+        sudoku: Sudoku = self.get_solved_sudoku()
+        grid: List[List[int]] = SudokuUtils.get_grid_copy(sudoku)
+        n, b = self.__empty_sudoku.sizes()
+
+        r, c = MatrixUtils.get_random_position(n)
+        v = grid[r][c]
+        grid[r][c] = 0
+
+        c_candidates = [j for j in range(n) if j != c]
+        random.shuffle(c_candidates)
+        k = None
+        c2 = None
+        for j in c_candidates:
+            if grid[r][j] != v:
+                k = grid[r][j]
+                c2 = j
+                break
+        if k is None:
+            return Sudoku(SudokuUtils.get_grid_copy(self.get_solved_sudoku()))
+
+        if grid[r][c2] == k:
+            grid[r][c2] = 0
+
+        r_k = next((i for i in range(n) if grid[i][c] == k), None)
+        if r_k is not None and r_k != r:
+            grid[r_k][c] = 0
+
+        bi = (r // b) * b
+        bj = (c // b) * b
+        pos_k_block: Tuple[int, int] = None
+        for ii in range(bi, bi + b):
+            for jj in range(bj, bj + b):
+                if grid[ii][jj] == k:
+                    pos_k_block = (ii, jj)
+                    break
+            if pos_k_block is not None:
+                break
+        if pos_k_block is not None and pos_k_block != (r, c):
+            i_b, j_b = pos_k_block
+            grid[i_b][j_b] = 0
+
+        positions: List[Tuple[int, int]] = [
+            (i, j)
+            for i in range(n)
+            for j in range(n)
+            if grid[i][j] != 0 and grid[i][j] != v and not (i == r and j == c)
+        ]
+        if positions:
+            k_extra = max(0, math.ceil(len(positions) * prob_zero))
+            for (i, j) in random.sample(positions, k=min(k_extra, len(positions))):
+                grid[i][j] = 0
+
+        return Sudoku(grid)
 
     def get_consensus_principle_sudoku(self) -> Sudoku:
         raise NotImplementedError()
