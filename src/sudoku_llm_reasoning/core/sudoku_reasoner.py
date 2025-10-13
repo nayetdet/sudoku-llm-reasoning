@@ -7,6 +7,7 @@ import google.generativeai as genai
 from typing import Tuple, Dict, Any
 from google.generativeai import GenerativeModel
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuSingle
+from src.sudoku_llm_reasoning.core.compare_llm import compare_llm_vs_candidates, save_report
 from src.sudoku_llm_reasoning.exceptions.sudoku_reasoner_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
 from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
@@ -25,6 +26,31 @@ class SudokuReasoner:
             raise SudokuAlreadySolvedException("The Sudoku is already complete and solved")
 
         llm_solution: SudokuLLMSolutionSchema = self.solve(sudoku)
+        try:
+            
+            report = compare_llm_vs_candidates(sudoku, llm_solution, z3_verify=False)
+
+            
+            summary = report.get("summary", {})
+            logging.info(f"LLM vs Candidates summary: {summary}")
+
+            
+            for ps in report.get("per_step", []):
+                if ps.get("missing") or ps.get("extra") or ps.get("single_value_conflict"):
+                    logging.warning(
+                        "LLM step #%s pos=%s: LLM_candidates=%s | true_candidates=%s | missing=%s | extra=%s | single_conflict=%s",
+                        ps.get("step"),
+                        ps.get("position"),
+                        ps.get("llm_candidates"),
+                        ps.get("true_candidates"),
+                        ps.get("missing"),
+                        ps.get("extra"),
+                        ps.get("single_value_conflict"),
+                    )
+        except Exception as e:
+                    
+                    logging.exception("Erro ao comparar candidatos LLM vs calculados: %s", e)
+            
         if llm_solution.final_grid not in (x.grid for x in sudoku.solutions):
             raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect and does not match any valid Sudoku solution")
 
