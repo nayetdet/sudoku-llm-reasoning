@@ -116,6 +116,27 @@ class Sudoku:
 
         return all_hidden_candidates & candidates_grid[i][j]
 
+    def find_consensus_candidates(self) -> List[SudokuSingle]:
+        n = len(self)
+        consensus = []
+
+        for i in range(n):
+            for j in range(n):
+                if self.grid[i][j] != 0:
+                    continue
+
+                possible_values = []
+                for val in range(1, n + 1):
+                    candidate = self.next_step(i, j, val)
+                    if candidate.is_solvable():
+                        possible_values.append(val)
+
+                if len(possible_values) == 1:
+                    consensus.append(SudokuSingle(position=(i, j), value=possible_values[0]))
+
+        return consensus
+
+
     def __solve_all(self) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid
         n, n_isqrt = self.sizes()
