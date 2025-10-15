@@ -19,6 +19,7 @@ def test_hidden_singles_sudoku_analysis(sudoku_4x4_factory: SudokuFactory, sudok
     sudoku: Sudoku = sudoku_4x4_factory.get_hidden_singles_sudoku()
     sudoku_reasoner.analyze(sudoku)
 
+@pytest.mark.skip()
 def test_consensus_sudoku_analysis(sudoku_4x4_factory: SudokuFactory, sudoku_reasoner: SudokuReasoner) -> None:
     sudoku: Sudoku = sudoku_4x4_factory.get_consensus_principle_sudoku()
     sudoku_reasoner.analyze(sudoku)

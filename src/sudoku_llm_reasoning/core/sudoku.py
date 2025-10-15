@@ -3,7 +3,9 @@ import itertools
 from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
-from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
+#from sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
+from ..exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
+
 
 @dataclass
 class SudokuSingle:
@@ -116,25 +118,83 @@ class Sudoku:
 
         return all_hidden_candidates & candidates_grid[i][j]
 
+    
+    def _column_values(self, j: int) -> Set[int]:
+        n = len(self)
+        return {self.grid[i][j] for i in range(n) if self.grid[i][j] != 0}
+    
+    def _row_values(self, i: int) -> Set[int]:
+        n = len(self)
+        return {self.grid[i][j] for j in range(n) if self.grid[i][j] != 0}
+    
+    def _is_valid_candidate(self, i: int, j: int, val: int) -> bool:
+        """
+        Retorna True se val PODE ser colocado em (i, j) sem violar
+        linha, coluna ou sub-bloco. False caso contrário.
+        """
+        n, n_isqrt = self.sizes()
+
+        # verifica linha
+        if val in self._row_values(i):
+            return False
+
+        # verifica coluna
+        if val in self._column_values(j):
+            return False
+
+        # verifica sub-bloco
+        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
+        for ii in range(n_isqrt):
+            for jj in range(n_isqrt):
+                if self.grid[i0 + ii][j0 + jj] == val:
+                    return False
+
+        return True
+
+    def _block_sudoku_singles(self, i: int, j: int) -> list[SudokuSingle]:
+        n, n_isqrt = self.sizes()
+        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
+        return [SudokuSingle(position=(i0 + ii, j0 + jj), value=self.grid[i0 + ii][j0 + jj]) for ii in range(n_isqrt) for jj in range(n_isqrt) if self.grid[i0 + ii][j0 + jj] == 0 and not (i0 + ii == i and j0 + jj == j)]
+
     def find_consensus_candidates(self) -> List[SudokuSingle]:
         n = len(self)
-        consensus = []
+        consensus: List[SudokuSingle] = []
 
         for i in range(n):
             for j in range(n):
                 if self.grid[i][j] != 0:
                     continue
 
-                possible_values = []
-                for val in range(1, n + 1):
-                    candidate = self.next_step(i, j, val)
-                    if candidate.is_solvable():
-                        possible_values.append(val)
+                possible_value: Optional[SudokuSingle] = None
 
-                if len(possible_values) == 1:
-                    consensus.append(SudokuSingle(position=(i, j), value=possible_values[0]))
+                for val in range(1, n + 1):
+                    # primeiro teste rápido (linha/coluna via comparação com candidate)
+                    if not self._is_valid_candidate(i, j, val):
+                        continue
+                
+                    sup_candidate = self.next_step(i, j, val)
+
+                    absurd_values: List[SudokuSingle] = []
+                    # pegar os vizinhos no bloco já no candidato (onde (i,j) está preenchido)
+                    neighbor_singles = self._block_sudoku_singles(i, j)
+
+                    for neighbor in neighbor_singles:
+                        ni, nj = neighbor.position
+                        # cheque se o valor do candidate permanece válido no vizinho
+                        # se NÃO for válido (i.e., criou contradição), é absurdo
+                        if not self._is_valid_candidate(ni, nj, val):
+                            absurd_values.append(neighbor)
+                            break  # basta um absurd para invalidar este val
+                            
+                    if not absurd_values:
+                        possible_value = SudokuSingle(position=(i, j), value=val)
+                        break  # opcional: parar após encontrar um candidato consensual
+                    absurd_values.clear()
+                if possible_value is not None:
+                    consensus.append(possible_value)
 
         return consensus
+
 
 
     def __solve_all(self) -> Tuple["Sudoku", ...]:
@@ -203,3 +263,32 @@ class Sudoku:
             if len(candidates) == 1:
                 singles.append(SudokuSingle(position=(i, j), value=candidates.pop()))
         return tuple(singles)
+
+
+if __name__ == "__main__":
+    grid = [
+        [5, 3, 0,  0, 7, 0,  0, 0, 0],
+        [6, 0, 0,  1, 9, 5,  0, 0, 0],
+        [0, 9, 8,  0, 0, 0,  0, 6, 0],
+
+        [8, 0, 0,  0, 6, 0,  0, 0, 3],
+        [4, 0, 0,  8, 0, 3,  0, 0, 1],
+        [7, 0, 0,  0, 2, 0,  0, 0, 6],
+
+        [0, 6, 0,  0, 0, 0,  2, 8, 0],
+        [0, 0, 0,  4, 1, 9,  0, 0, 5],
+        [0, 0, 0,  0, 8, 0,  0, 7, 9]
+    ]
+
+    sudolu = Sudoku(grid)
+    print(sudolu)
+    # print("Is empty:", sudolu.is_empty())
+    # print("Is full:", sudolu.is_full())
+    # print("Is solvable:", sudolu.is_solvable())
+    # print("Is solved:", sudolu.is_solved())
+    # print("Naked singles:", sudolu.naked_singles)
+    # print("Hidden singles:", sudolu.hidden_singles)
+    print("Consensus:", [cell for cell in sudolu.find_consensus_candidates()])
+    print("Solutions:")
+    for solution in sudolu.solutions:
+        print(solution)
