@@ -1,14 +1,14 @@
 import math
 import itertools
+from copy import copy
 from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
-#from sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
-from ..exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
+from src.sudoku_llm_reasoning.enums.sudoku_candidate_type import SudokuCandidateType
+from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
 
-
-@dataclass
-class SudokuSingle:
+@dataclass(frozen=True)
+class SudokuCandidate:
     value: int
     position: Tuple[int, int]
 
@@ -20,13 +20,74 @@ class Sudoku:
         if len(grid) != math.isqrt(len(grid)) ** 2:
             raise SudokuInvalidDimensionsException("Grid size must be a perfect square")
 
-        self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(row) for row in grid)
-        self.__solutions: Optional[Tuple[Sudoku, ...]] = None
-        self.__naked_singles: Optional[Tuple[SudokuSingle, ...]] = None
-        self.__hidden_singles: Optional[Tuple[SudokuSingle, ...]] = None
+        self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
+        self.__candidates_0th_layer: Optional[Tuple["SudokuCandidate", ...]] = None
+        self.__candidates_0th_layer_naked_singles: Optional[Tuple["SudokuCandidate", ...]] = None
+        self.__candidates_0th_layer_hidden_singles: Optional[Tuple["SudokuCandidate", ...]] = None
+        self.__candidates_1th_layer: Optional[Tuple["SudokuCandidate", ...]] = None
+        self.__candidates_nth_layer: Optional[Tuple["SudokuCandidate", ...]] = None
+        self.__solutions: Optional[Tuple["Sudoku", ...]] = None
+
+    @property
+    def grid(self) -> Tuple[Tuple[int, ...], ...]:
+        return self.__grid
+
+    @property
+    def grid_rows(self) -> Tuple[Tuple[int, ...], ...]:
+        return self.grid
+
+    @property
+    def grid_columns(self) -> Tuple[Tuple[int, ...], ...]:
+        n: int = len(self)
+        return tuple(tuple(self.grid[i][j] for i in range(n)) for j in range(n))
+
+    @property
+    def grid_blocks(self) -> Tuple[Tuple[int, ...], ...]:
+        blocks: List[List[int]] = []
+        n, n_isqrt = self.sizes()
+        for i0, j0 in itertools.product(range(0, n, n_isqrt), range(0, n, n_isqrt)):
+            block: List[int] = [self.grid[i0 + i][j0 + j] for i in range(n_isqrt) for j in range(n_isqrt)]
+            blocks.append(block)
+        return tuple(tuple(x) for x in blocks)
+
+    @property
+    def candidates_0th_layer(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_0th_layer is None:
+            self.__candidates_0th_layer = self.__solve_all_candidates(candidate_type=SudokuCandidateType.CONSENSUS_0TH_LAYER)
+        return self.__candidates_0th_layer
+
+    @property
+    def candidates_0th_layer_naked_singles(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_0th_layer_naked_singles is None:
+            self.__candidates_0th_layer_naked_singles = self.__solve_all_candidates(candidate_type=SudokuCandidateType.NAKED_SINGLES_0TH_LAYER)
+        return self.__candidates_0th_layer_naked_singles
+
+    @property
+    def candidates_0th_layer_hidden_singles(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_0th_layer_hidden_singles is None:
+            self.__candidates_0th_layer_hidden_singles = self.__solve_all_candidates(candidate_type=SudokuCandidateType.HIDDEN_SINGLES_0TH_LAYER)
+        return self.__candidates_0th_layer_hidden_singles
+
+    @property
+    def candidates_1th_layer(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_1th_layer is None:
+            self.__candidates_1th_layer = self.__solve_all_candidates(candidate_type=SudokuCandidateType.CONSENSUS_1TH_LAYER)
+        return self.__candidates_1th_layer
+
+    @property
+    def candidates_nth_layer(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_nth_layer is None:
+            self.__candidates_nth_layer = self.__solve_all_candidates(candidate_type=SudokuCandidateType.CONSENSUS_NTH_LAYER)
+        return self.__candidates_nth_layer
+
+    @property
+    def solutions(self) -> Tuple["Sudoku", ...]:
+        if self.__solutions is None:
+            self.__solutions = self.__solve_all_solutions()
+        return self.__solutions
 
     def __len__(self) -> int:
-        return len(self.__grid)
+        return len(self.grid)
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -34,74 +95,64 @@ class Sudoku:
     def __repr__(self) -> str:
         return f"Sudoku({self.__grid})"
 
-    @property
-    def grid(self) -> Tuple[Tuple[int, ...], ...]:
-        return self.__grid
-
-    @property
-    def solutions(self) -> Tuple["Sudoku", ...]:
-        if self.__solutions is None:
-            self.__solutions = self.__solve_all()
-        return self.__solutions
-
-    @property
-    def naked_singles(self) -> Tuple[SudokuSingle, ...]:
-        if self.__naked_singles is None:
-            self.__naked_singles = self.__solve_all_singles(hidden=False)
-        return self.__naked_singles
-
-    @property
-    def hidden_singles(self) -> Tuple[SudokuSingle, ...]:
-        if self.__hidden_singles is None:
-            self.__hidden_singles = self.__solve_all_singles(hidden=True)
-        return self.__hidden_singles
-
     def sizes(self) -> Tuple[int, int]:
         n: int = len(self)
         return n, math.isqrt(n)
 
     def is_empty(self) -> bool:
-        return all(all(cell == 0 for cell in row) for row in self.__grid)
+        return all(all(cell == 0 for cell in row) for row in self.grid)
 
     def is_full(self) -> bool:
-        return all(all(cell != 0 for cell in row) for row in self.__grid)
+        return all(all(cell != 0 for cell in row) for row in self.grid)
 
-    def is_solvable(self) -> bool:
+    def is_solvable_0th_layer(self) -> bool:
+        def has_no_duplicates(cells: Tuple[int, ...]) -> bool:
+            nums: List[int] = [x for x in cells if x != 0]
+            return len(nums) == len(set(nums))
+
+        are_rows_valid: bool = all(has_no_duplicates(x) for x in self.grid)
+        are_columns_valid: bool = all(has_no_duplicates(x) for x in self.grid_columns)
+        are_blocks_valid: bool = all(has_no_duplicates(x) for x in self.grid_blocks)
+        return are_rows_valid and are_columns_valid and are_blocks_valid
+
+    def is_solvable_nth_layer(self) -> bool:
         return len(self.solutions) > 0
 
     def is_solved(self) -> bool:
-        return self.is_full() and self.is_solvable()
+        return self.is_full() and self.is_solvable_nth_layer()
 
-    def next_step(self, i: int, j: int, value: int) -> "Sudoku":
-        grid: List[List[int]] = [list(row) for row in self.__grid]
+    def next_step_at_position(self, i: int, j: int, value: int) -> "Sudoku":
+        grid: List[List[int]] = [list(row) for row in self.grid]
         grid[i][j] = value
         return Sudoku(grid)
 
-    def naked_candidates(self, i: int, j: int) -> Set[int]:
-        if self.__grid[i][j] != 0:
+    def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
+        n, n_isqrt = self.sizes()
+        idx: int = (i // n_isqrt) * n_isqrt + (j // n_isqrt)
+        return self.grid_blocks[idx]
+
+    def __candidate_values_0th_layer_at_position(self, i: int, j: int) -> Set[int]:
+        if self.grid[i][j] != 0:
             return set()
 
+        n: int = len(self)
+        return set(range(1, n + 1)) - (set(self.grid_rows[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j))) - {0}
+
+    def __candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
+        if self.grid[i][j] != 0:
+            return set()
+
+        n: int = len(self)
+        return set(range(1, n + 1)) - set(self.grid_rows[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j))
+
+    def __candidate_values_0th_layer_hidden_singles_at_position(self, i: int, j: int) -> Set[int]:
         n, n_isqrt = self.sizes()
-        row: Set[int] = set(self.__grid[i])
-        column: Set[int] = {self.__grid[k][j] for k in range(n)}
-
-        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
-        subgrid: Set[int] = {
-            self.__grid[i0 + ii][j0 + jj]
-            for ii in range(n_isqrt)
-            for jj in range(n_isqrt)
-        }
-
-        return set(range(1, n + 1)) - row - column - subgrid
-
-    def hidden_candidates(self, i: int, j: int) -> Set[int]:
-        n, n_isqrt = self.sizes()
-        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
         candidates_grid: List[List[Set[int]]] = [
-            [self.naked_candidates(ii, jj) for jj in range(n)]
+            [self.__candidate_values_0th_layer_naked_singles_at_position(ii, jj) for jj in range(n)]
             for ii in range(n)
         ]
 
+        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
         all_hidden_candidates: Set[int] = {
             x for x in candidates_grid[i][j]
             if (
@@ -118,86 +169,43 @@ class Sudoku:
 
         return all_hidden_candidates & candidates_grid[i][j]
 
-    
-    def _column_values(self, j: int) -> Set[int]:
-        n = len(self)
-        return {self.grid[i][j] for i in range(n) if self.grid[i][j] != 0}
-    
-    def _row_values(self, i: int) -> Set[int]:
-        n = len(self)
-        return {self.grid[i][j] for j in range(n) if self.grid[i][j] != 0}
-    
-    def _is_valid_candidate(self, i: int, j: int, val: int) -> bool:
-        """
-        Retorna True se val PODE ser colocado em (i, j) sem violar
-        linha, coluna ou sub-bloco. False caso contrário.
-        """
-        n, n_isqrt = self.sizes()
+    def __candidate_values_1th_layer_at_position(self, i: int, j: int) -> Set[int]:
+        candidates: Set[int] = self.__candidate_values_0th_layer_at_position(i, j)
+        for candidate in copy(candidates):
+            next_sudoku: Sudoku = self.next_step_at_position(i, j, candidate)
+            if not next_sudoku.is_solvable_0th_layer():
+                candidates.remove(candidate)
+        return candidates
 
-        # verifica linha
-        if val in self._row_values(i):
-            return False
+    def __candidate_values_nth_layer_at_position(self, i: int, j: int) -> Set[int]:
+        n: int = len(self)
+        candidates: Set[int] = set()
+        for candidate in range(1, n + 1):
+            next_sudoku: Sudoku = self.next_step_at_position(i, j, candidate)
+            if next_sudoku.is_solvable_nth_layer():
+                candidates.add(candidate)
+        return candidates
 
-        # verifica coluna
-        if val in self._column_values(j):
-            return False
+    def __solve_all_candidates(self, candidate_type: SudokuCandidateType) -> Tuple["SudokuCandidate", ...]:
+        n: int = len(self)
+        candidates: List[SudokuCandidate] = []
+        for i, j in itertools.product(range(n), range(n)):
+            values: Set[int] = set()
+            match candidate_type:
+                case SudokuCandidateType.NAKED_SINGLES_0TH_LAYER: values = self.__candidate_values_0th_layer_naked_singles_at_position(i, j)
+                case SudokuCandidateType.HIDDEN_SINGLES_0TH_LAYER: values = self.__candidate_values_0th_layer_hidden_singles_at_position(i, j)
+                case SudokuCandidateType.CONSENSUS_0TH_LAYER: values = self.__candidate_values_0th_layer_at_position(i, j)
+                case SudokuCandidateType.CONSENSUS_1TH_LAYER: values = self.__candidate_values_1th_layer_at_position(i, j)
+                case SudokuCandidateType.CONSENSUS_NTH_LAYER: values = self.__candidate_values_nth_layer_at_position(i, j)
 
-        # verifica sub-bloco
-        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
-        for ii in range(n_isqrt):
-            for jj in range(n_isqrt):
-                if self.grid[i0 + ii][j0 + jj] == val:
-                    return False
+            for value in values:
+                candidates.append(SudokuCandidate(
+                    position=(i, j),
+                    value=value
+                ))
+        return tuple(candidates)
 
-        return True
-
-    def _block_sudoku_singles(self, i: int, j: int) -> list[SudokuSingle]:
-        n, n_isqrt = self.sizes()
-        i0, j0 = (i // n_isqrt) * n_isqrt, (j // n_isqrt) * n_isqrt
-        return [SudokuSingle(position=(i0 + ii, j0 + jj), value=self.grid[i0 + ii][j0 + jj]) for ii in range(n_isqrt) for jj in range(n_isqrt) if self.grid[i0 + ii][j0 + jj] == 0 and not (i0 + ii == i and j0 + jj == j)]
-
-    def find_consensus_candidates(self) -> List[SudokuSingle]:
-        n = len(self)
-        consensus: List[SudokuSingle] = []
-
-        for i in range(n):
-            for j in range(n):
-                if self.grid[i][j] != 0:
-                    continue
-
-                possible_value: Optional[SudokuSingle] = None
-
-                for val in range(1, n + 1):
-                    # primeiro teste rápido (linha/coluna via comparação com candidate)
-                    if not self._is_valid_candidate(i, j, val):
-                        continue
-                
-                    sup_candidate = self.next_step(i, j, val)
-
-                    absurd_values: List[SudokuSingle] = []
-                    # pegar os vizinhos no bloco já no candidato (onde (i,j) está preenchido)
-                    neighbor_singles = self._block_sudoku_singles(i, j)
-
-                    for neighbor in neighbor_singles:
-                        ni, nj = neighbor.position
-                        # cheque se o valor do candidate permanece válido no vizinho
-                        # se NÃO for válido (i.e., criou contradição), é absurdo
-                        if not self._is_valid_candidate(ni, nj, val):
-                            absurd_values.append(neighbor)
-                            break  # basta um absurd para invalidar este val
-                            
-                    if not absurd_values:
-                        possible_value = SudokuSingle(position=(i, j), value=val)
-                        break  # opcional: parar após encontrar um candidato consensual
-                    absurd_values.clear()
-                if possible_value is not None:
-                    consensus.append(possible_value)
-
-        return consensus
-
-
-
-    def __solve_all(self) -> Tuple["Sudoku", ...]:
+    def __solve_all_solutions(self) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid
         n, n_isqrt = self.sizes()
         cells: List[List[Int]] = [
@@ -233,7 +241,7 @@ class Sudoku:
 
         # Rule: Pre-fill the cells that already have numbers in the given Sudoku grid
         instance_constraints: List[BoolRef] = [
-            If(self.__grid[i][j] == 0, True, cells[i][j] == self.__grid[i][j])
+            If(self.grid[i][j] == 0, True, cells[i][j] == self.grid[i][j])
             for i in range(n)
             for j in range(n)
         ]
@@ -254,41 +262,3 @@ class Sudoku:
             solutions.append(Sudoku(solution_grid))
             solver.add(Or([cells[i][j] != model.evaluate(cells[i][j]) for i in range(n) for j in range(n)]))
         return tuple(solutions)
-
-    def __solve_all_singles(self, hidden: bool = True) -> Tuple[SudokuSingle, ...]:
-        n: int = len(self)
-        singles: List[SudokuSingle] = []
-        for i, j in itertools.product(range(n), range(n)):
-            candidates: Set[int] = self.hidden_candidates(i, j) if hidden else self.naked_candidates(i, j)
-            if len(candidates) == 1:
-                singles.append(SudokuSingle(position=(i, j), value=candidates.pop()))
-        return tuple(singles)
-
-
-if __name__ == "__main__":
-    grid = [
-        [5, 3, 0,  0, 7, 0,  0, 0, 0],
-        [6, 0, 0,  1, 9, 5,  0, 0, 0],
-        [0, 9, 8,  0, 0, 0,  0, 6, 0],
-
-        [8, 0, 0,  0, 6, 0,  0, 0, 3],
-        [4, 0, 0,  8, 0, 3,  0, 0, 1],
-        [7, 0, 0,  0, 2, 0,  0, 0, 6],
-
-        [0, 6, 0,  0, 0, 0,  2, 8, 0],
-        [0, 0, 0,  4, 1, 9,  0, 0, 5],
-        [0, 0, 0,  0, 8, 0,  0, 7, 9]
-    ]
-
-    sudolu = Sudoku(grid)
-    print(sudolu)
-    # print("Is empty:", sudolu.is_empty())
-    # print("Is full:", sudolu.is_full())
-    # print("Is solvable:", sudolu.is_solvable())
-    # print("Is solved:", sudolu.is_solved())
-    # print("Naked singles:", sudolu.naked_singles)
-    # print("Hidden singles:", sudolu.hidden_singles)
-    print("Consensus:", [cell for cell in sudolu.find_consensus_candidates()])
-    print("Solutions:")
-    for solution in sudolu.solutions:
-        print(solution)

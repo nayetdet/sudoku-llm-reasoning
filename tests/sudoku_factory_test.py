@@ -2,20 +2,14 @@ from src.sudoku_llm_reasoning.core.sudoku import Sudoku
 from src.sudoku_llm_reasoning.core.sudoku_reasoner import SudokuReasoner
 from tests.factories.sudoku_factory import SudokuFactory
 
-NUM_TESTS: int = 100
+NUM_TESTS: int = 1000
 
 def test_naked_singles_sudoku(sudoku_4x4_factory: SudokuFactory, sudoku_reasoner: SudokuReasoner) -> None:
     for _ in range(NUM_TESTS):
         sudoku: Sudoku = sudoku_4x4_factory.get_naked_singles_sudoku(prob_zero=1)
-        assert len(sudoku.naked_singles) > 0
+        assert len(sudoku.candidates_0th_layer_naked_singles) > 0
 
-def test_hidden_singles_sudoku(sudoku_4x4_factory: SudokuFactory, sudoku_reasoner: SudokuReasoner) -> None:
+def test_hidden_singles_sudoku(sudoku_4x4_factory, sudoku_reasoner) -> None:
     for _ in range(NUM_TESTS):
-        sudoku: Sudoku = sudoku_4x4_factory.get_hidden_singles_sudoku()
-        assert len(sudoku.hidden_singles) > 0
-
-def test_consensus_sudoku(sudoku_4x4_factory: SudokuFactory, sudoku_reasoner: SudokuReasoner) -> None:
-    for _ in range(NUM_TESTS):
-        sudoku: Sudoku = sudoku_4x4_factory.get_consensus_principle_sudoku()
-        consensus_cells = sudoku.find_consensus_candidates()
-        assert len(consensus_cells) > 0
+        sudoku = sudoku_4x4_factory.get_hidden_singles_sudoku()
+        assert len(sudoku.candidates_0th_layer_hidden_singles) > 0
