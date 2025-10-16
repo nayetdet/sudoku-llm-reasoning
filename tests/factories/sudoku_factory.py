@@ -45,7 +45,6 @@ class SudokuFactory:
         d = sudoku_grid[row_idx][col_idx]
 
         preserve_type = random.choice(["row", "column", "block"])
-
         if preserve_type == "row": unit_positions: List[Tuple[int, int]] = [(row_idx, j) for j in range(n)]
         elif preserve_type == "column": unit_positions = [(i, col_idx) for i in range(n)]
         else:
@@ -54,9 +53,7 @@ class SudokuFactory:
             unit_positions = [(i0 + i, j0 + j) for i in range(n_isqrt) for j in range(n_isqrt)]
 
         sudoku_grid[row_idx][col_idx] = 0
-
-        candidates_in_unit = [(i, j) for (i, j) in unit_positions if
-                              not (i == row_idx and j == col_idx) and sudoku_grid[i][j] != d]
+        candidates_in_unit = [(i, j) for (i, j) in unit_positions if not (i == row_idx and j == col_idx) and sudoku_grid[i][j] != d]
         k_in_unit = max(1, min(len(candidates_in_unit), n_isqrt))
         for (i, j) in random.sample(candidates_in_unit, k=k_in_unit):
             sudoku_grid[i][j] = 0
@@ -64,28 +61,7 @@ class SudokuFactory:
         return Sudoku(sudoku_grid)
 
     def get_consensus_principle_sudoku(self) -> Sudoku:
-        MAX_ATTEMPTS: int = 50
-        for _ in range(MAX_ATTEMPTS):
-            sudoku = self.get_solved_sudoku()
-            grid = SudokuUtils.get_grid_copy(sudoku)
-            n, n_isqrt = self.__empty_sudoku.sizes()
-
-            if random.random() < 0.5:
-                row = random.randint(0, n - 1)
-                cols = random.sample(range(n), k=2)
-                for j in cols:
-                    grid[row][j] = 0
-            else:
-                col = random.randint(0, n - 1)
-                rows = random.sample(range(n), k=2)
-                for i in rows:
-                    grid[i][col] = 0
-
-            sudoku_candidate = Sudoku(grid)
-            if len(sudoku_candidate.find_consensus_candidates()) > 0:
-                return sudoku_candidate
-
-        return self.get_solved_sudoku()
+        raise NotImplementedError()
 
     def get_unsolvable_sudoku(self) -> Sudoku:
         raise NotImplementedError()
