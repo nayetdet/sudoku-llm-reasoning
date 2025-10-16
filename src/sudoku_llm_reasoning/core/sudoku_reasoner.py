@@ -6,7 +6,7 @@ import itertools
 import google.generativeai as genai
 from typing import Tuple, Dict, Any
 from google.generativeai import GenerativeModel
-from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuSingle
+from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuCandidate
 from src.sudoku_llm_reasoning.exceptions.sudoku_reasoner_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
 from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
@@ -18,7 +18,7 @@ class SudokuReasoner:
 
     def analyze(self, sudoku: Sudoku) -> None:
         logging.info(f"Analyzing the following Sudoku: {sudoku}")
-        if not sudoku.is_solvable():
+        if not sudoku.is_solvable_nth_layer():
             raise SudokuUnsolvableException("The Sudoku is unsolvable; neither the Single Candidate Principle nor the Consensus Principle can be applied")
 
         if sudoku.is_solved():
@@ -29,23 +29,27 @@ class SudokuReasoner:
             raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect and does not match any valid Sudoku solution")
 
         for llm_step in llm_solution.steps:
-            naked_singles: Tuple[SudokuSingle, ...] = sudoku.naked_singles
-            hidden_singles: Tuple[SudokuSingle, ...] = sudoku.hidden_singles
+            candidates_0th_layer: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer
+            candidates_0th_layer_naked_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
+            candidates_0th_layer_hidden_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
+            candidates_1th_layer: Tuple[SudokuCandidate, ...] = sudoku.candidates_1th_layer
 
             logging.info("")
             logging.info(f"Step #{llm_step.step}: inserting '{llm_step.value}' into {tuple(llm_step.position)}")
             logging.info(f"Explanation: {llm_step.explanation}")
             logging.info(f"Candidates (LLM): {list(llm_step.candidates_before)}")
-            logging.info(f"Candidates (Z3 - Naked Candidates): {[x.value for x in naked_singles if x.position == llm_step.position]}")
-            logging.info(f"Candidates (Z3 - Hidden Candidates): {[x.value for x in hidden_singles if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 0th layer candidates): {[x.value for x in candidates_0th_layer if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 0th layer naked single candidates): {[x.value for x in candidates_0th_layer_naked_singles if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 0th layer hidden single candidates): {[x.value for x in candidates_0th_layer_hidden_singles if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 1th layer candidates): {[x.value for x in candidates_1th_layer if x.position == llm_step.position]}")
 
-            if any(x.value == llm_step.value and x.position == llm_step.position for x in itertools.chain(naked_singles, hidden_singles)):
+            if any(x.value == llm_step.value and x.position == llm_step.position for x in itertools.chain(candidates_0th_layer_naked_singles, candidates_0th_layer_hidden_singles)):
                 logging.info("The step was resolved using the Single Candidate Principle")
             else: logging.info("No candidates found via the Single Candidate Principle (Naked/Hidden Singles); the step relied on the Consensus Principle instead")
 
-            sudoku = sudoku.next_step(*llm_step.position, llm_step.value)
+            sudoku = sudoku.next_step_at_position(*llm_step.position, llm_step.value)
             logging.info(f"Sudoku: {sudoku}")
-            if not sudoku.is_solvable():
+            if not sudoku.is_solvable_nth_layer():
                 raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect; a step made the Sudoku unsolvable")
 
         logging.info("Analysis completed successfully for the Sudoku")
