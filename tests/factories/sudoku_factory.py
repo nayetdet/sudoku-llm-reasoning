@@ -64,7 +64,28 @@ class SudokuFactory:
         return Sudoku(sudoku_grid)
 
     def get_consensus_principle_sudoku(self) -> Sudoku:
-        raise NotImplementedError()
+        MAX_ATTEMPTS: int = 50
+        for _ in range(MAX_ATTEMPTS):
+            sudoku = self.get_solved_sudoku()
+            grid = SudokuUtils.get_grid_copy(sudoku)
+            n, n_isqrt = self.__empty_sudoku.sizes()
+
+            if random.random() < 0.5:
+                row = random.randint(0, n - 1)
+                cols = random.sample(range(n), k=2)
+                for j in cols:
+                    grid[row][j] = 0
+            else:
+                col = random.randint(0, n - 1)
+                rows = random.sample(range(n), k=2)
+                for i in rows:
+                    grid[i][col] = 0
+
+            sudoku_candidate = Sudoku(grid)
+            if len(sudoku_candidate.find_consensus_candidates()) > 0:
+                return sudoku_candidate
+
+        return self.get_solved_sudoku()
 
     def get_unsolvable_sudoku(self) -> Sudoku:
         raise NotImplementedError()
