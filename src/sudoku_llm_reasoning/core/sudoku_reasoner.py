@@ -7,7 +7,7 @@ import google.generativeai as genai
 from typing import Tuple, Dict, Any
 from google.generativeai import GenerativeModel
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuCandidate
-from src.sudoku_llm_reasoning.exceptions.sudoku_reasoner_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
+from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
 from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
 
@@ -33,8 +33,8 @@ class SudokuReasoner:
             candidates_0th_layer_naked_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer_hidden_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer
-            candidates_1th_layer_partial_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1th_layer_partial_consensus
-            candidates_1th_layer_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1th_layer_consensus
+            candidates_1th_layer_partial_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_partial_consensus
+            candidates_1th_layer_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_consensus
 
             logging.info("")
             logging.info(f"Step #{llm_step.step}: inserting '{llm_step.value}' into {tuple(llm_step.position)}")
