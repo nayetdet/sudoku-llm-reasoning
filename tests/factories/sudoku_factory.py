@@ -60,8 +60,8 @@ class SudokuFactory:
 
         return Sudoku(sudoku_grid)
 
-    def get_consensus_principle_sudoku(self) -> Sudoku:
+    def get_partial_consensus_sudoku(self) -> Sudoku:
         raise NotImplementedError()
 
-    def get_unsolvable_sudoku(self) -> Sudoku:
+    def get_consensus_sudoku(self) -> Sudoku:
         raise NotImplementedError()
