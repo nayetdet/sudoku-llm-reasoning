@@ -9,7 +9,7 @@ from google.generativeai import GenerativeModel
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuCandidate
 from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
-from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
+from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuCandidatesSchema, SudokuLLMSolutionSchema
 
 class SudokuReasoner:
     def __init__(self, llm_model: str, llm_api_key: str) -> None:
@@ -57,6 +57,42 @@ class SudokuReasoner:
                 raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect; a step made the Sudoku unsolvable")
 
         logging.info("Analysis completed successfully for the Sudoku")
+
+    def analyze_naked_singles(self, sudoku: Sudoku) -> None:
+        logging.info(f"Analyzing ONE-PASS Naked Singles for: {sudoku}")
+
+        if not sudoku.is_solvable_nth_layer():
+            raise SudokuUnsolvableException(
+                "The Sudoku is unsolvable; neither the Single Candidate Principle nor the Consensus Principle can be applied"
+            )
+        if sudoku.is_solved():
+            raise SudokuAlreadySolvedException("The Sudoku is already complete and solved")
+
+        z3_naked: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_naked_singles
+
+        llm_candidates: SudokuCandidatesSchema = self.solve_naked_single(sudoku)
+
+        for cand in llm_candidates.candidates:
+            if not (len(cand.candidates_before) == 1 and cand.candidates_before[0] == cand.value):
+                raise SudokuInvalidLLMSolutionException(
+                    f"LLM returned invalid candidates_before for {tuple(cand.position)}: {cand.candidates_before}"
+                )
+
+        z3_set = {(x.position, x.value) for x in z3_naked}
+        llm_set = {(tuple(c.position), c.value) for c in llm_candidates.candidates}
+
+        extras = llm_set - z3_set
+        if extras:
+            raise SudokuInvalidLLMSolutionException(
+                f"LLM reported non-Naked-Single positions/values: {sorted(extras)}"
+            )
+
+        missing = z3_set.difference(llm_set)
+        if missing:
+            logging.warning(f"LLM missed some Naked Singles found by Z3: {sorted(missing)}")
+
+        logging.info("ONE-PASS Naked Singles analysis completed: LLM output is consistent with Z3 (no moves applied).")
+
 
     def solve(self, sudoku: Sudoku) -> SudokuLLMSolutionSchema:
         logging.info("Generating prompt and sending Sudoku to LLM for solving")
@@ -121,4 +157,53 @@ class SudokuReasoner:
 
         solution: SudokuLLMSolutionSchema = SudokuMapper.to_llm_solution_schema(data)
         logging.info("LLM response received and processed into Sudoku solution schema")
+        return solution
+
+    def solve_naked_single(self, sudoku: Sudoku) -> SudokuCandidatesSchema:
+        logging.info("Generating prompt and sending Sudoku to LLM for ONE-PASS Naked Singles scan")
+        try:
+            text: str = self.__llm.generate_content(textwrap.dedent(f"""
+                Faça apenas UMA varredura de Naked Singles neste Sudoku. NÃO aplique nenhuma jogada.
+                Apenas identifique as células que, neste estado atual, têm exatamente 1 candidato possível.
+
+                Sudoku (0 = vazio):
+                {sudoku}
+
+                Regras de resposta (obrigatório):
+                1) Retorne SOMENTE JSON válido (sem cercas de código).
+                2) Indexação zero-based: "position" = [linha, coluna].
+                3) Para CADA Naked Single encontrado agora, inclua:
+                - "index": inteiro sequencial iniciando em 1 (ordem da sua listagem)
+                - "position": [i, j]
+                - "value": inteiro
+                - "candidates_before": lista contendo EXATAMENTE esse único valor (ex: [5])
+                - "explanation": frase curta e factual
+                4) NÃO aplique jogadas, NÃO altere a grade.
+                5) Se não houver Naked Singles nesta varredura, retorne um JSON com `{{"error": "No Naked Singles found"}}`.
+
+                Formato de saída:
+                {{
+                "candidates": [
+                    {{
+                    "index": 1,
+                    "position": [i, j],
+                    "value": v,
+                    "candidates_before": [v],
+                    "explanation": "..."
+                    }}
+                ]
+                }}
+            """).strip()).text
+        except Exception as e:
+            logging.error("An error occurred while generating content from the LLM")
+            raise e
+
+        sanitized_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
+        data: Dict[str, Any] = json.loads(sanitized_text)
+
+        # logging.info(f"LLM returned data for ONE-PASS Naked Singles: {data}")
+        # logging.info(f"Candidates found: {data.get('candidates', [])}")
+
+        solution: SudokuCandidatesSchema = SudokuMapper.to_llm_naked_singles_schema(data)
+        logging.info("LLM response received and processed into Naked Singles ONE-PASS schema")
         return solution

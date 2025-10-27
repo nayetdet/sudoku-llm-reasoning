@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 from pydantic import BaseModel
 
 class SudokuLLMStepSchema(BaseModel):
@@ -12,3 +12,13 @@ class SudokuLLMSolutionSchema(BaseModel):
     steps: Tuple[SudokuLLMStepSchema, ...]
     final_grid: Tuple[Tuple[int, ...], ...]
     unique_solution: bool
+
+class NakedSingleCandidateSchema(BaseModel):
+    index: int
+    position: Tuple[int, int]
+    value: int
+    candidates_before: Tuple[int, ...]
+    explanation: str
+
+class SudokuCandidatesSchema(BaseModel):
+    candidates: List[NakedSingleCandidateSchema]
