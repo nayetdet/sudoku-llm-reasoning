@@ -3,10 +3,10 @@ import math
 from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set, Dict
+from typing import List, Tuple, Optional, Set, Dict, Any
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.enums.sudoku_candidate_type import SudokuCandidateType
-from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
+from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidSizeException
 
 @dataclass(frozen=True)
 class SudokuCandidate:
@@ -16,10 +16,10 @@ class SudokuCandidate:
 class Sudoku:
     def __init__(self, grid: List[List[int]]) -> None:
         if any(len(row) != len(grid) for row in grid):
-            raise SudokuInvalidDimensionsException("Grid must be square")
+            raise SudokuInvalidSizeException("Grid must be square")
 
         if len(grid) != math.isqrt(len(grid)) ** 2:
-            raise SudokuInvalidDimensionsException("Grid size must be a perfect square")
+            raise SudokuInvalidSizeException("Grid size must be a perfect square")
 
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
         self.__candidates_0th_layer_without_inference: Optional[Tuple["SudokuCandidate"], ...] = None
@@ -39,6 +39,12 @@ class Sudoku:
 
     def __repr__(self) -> str:
         return f"Sudoku({self.__grid})"
+
+    def __hash__(self) -> int:
+        return hash(self.grid)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, Sudoku) and self.grid == other.grid
 
     @property
     def grid(self) -> Tuple[Tuple[int, ...], ...]:
@@ -130,7 +136,7 @@ class Sudoku:
     @property
     def solutions(self) -> Tuple["Sudoku", ...]:
         if self.__solutions is None:
-            self.__solutions = self.__solve_all_solutions()
+            self.__solutions = self.solve()
         return self.__solutions
 
     def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
@@ -291,31 +297,7 @@ class Sudoku:
                 candidates.add(candidate)
         return candidates
 
-    def __solve_all_candidates(self, candidate_type: SudokuCandidateType) -> Tuple["SudokuCandidate", ...]:
-        n: int = len(self)
-        candidates: List[SudokuCandidate] = []
-        for i, j in itertools.product(range(n), range(n)):
-            values: Set[int] = set()
-            match candidate_type:
-                case SudokuCandidateType.ZEROTH_LAYER_WITHOUT_INFERENCE: values = self.candidate_values_0th_layer_without_inference_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: values = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: values = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER: values = self.candidate_values_0th_layer_at_position(i, j)
-                case SudokuCandidateType.FIRST_LAYER_PARTIAL_CONSENSUS: values = self.candidate_values_1st_layer_partial_consensus_at_position(i, j)
-                case SudokuCandidateType.FIRST_LAYER_CONSENSUS: values = self.candidate_values_1st_layer_consensus_at_position(i, j)
-                case SudokuCandidateType.NTH_LAYER: values = self.candidate_values_nth_layer_at_position(i, j)
-
-            for value in values:
-                candidates.append(
-                    SudokuCandidate(
-                        position=(i, j),
-                        value=value
-                    )
-                )
-
-        return tuple(candidates)
-
-    def __solve_all_solutions(self) -> Tuple["Sudoku", ...]:
+    def solve(self, max_solutions: Optional[int] = None) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid
         n, n_isqrt = self.sizes()
         cells: List[List[Int]] = [
@@ -397,4 +379,31 @@ class Sudoku:
                 )
             )
 
+            if max_solutions is not None and len(solutions) >= max_solutions:
+                break
+
         return tuple(solutions)
+
+    def __solve_all_candidates(self, candidate_type: SudokuCandidateType) -> Tuple["SudokuCandidate", ...]:
+        n: int = len(self)
+        candidates: List[SudokuCandidate] = []
+        for i, j in itertools.product(range(n), range(n)):
+            values: Set[int] = set()
+            match candidate_type:
+                case SudokuCandidateType.ZEROTH_LAYER_WITHOUT_INFERENCE: values = self.candidate_values_0th_layer_without_inference_at_position(i, j)
+                case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: values = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
+                case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: values = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
+                case SudokuCandidateType.ZEROTH_LAYER: values = self.candidate_values_0th_layer_at_position(i, j)
+                case SudokuCandidateType.FIRST_LAYER_PARTIAL_CONSENSUS: values = self.candidate_values_1st_layer_partial_consensus_at_position(i, j)
+                case SudokuCandidateType.FIRST_LAYER_CONSENSUS: values = self.candidate_values_1st_layer_consensus_at_position(i, j)
+                case SudokuCandidateType.NTH_LAYER: values = self.candidate_values_nth_layer_at_position(i, j)
+
+            for value in values:
+                candidates.append(
+                    SudokuCandidate(
+                        position=(i, j),
+                        value=value
+                    )
+                )
+
+        return tuple(candidates)

@@ -1,9 +1,9 @@
 import random
-from typing import Tuple
+from typing import List, Tuple
 
 class MatrixUtils:
     @classmethod
-    def get_empty_matrix(cls, n: int):
+    def get_empty_matrix(cls, n: int) -> List[List[int]]:
         return [[0 for _ in range(n)] for _ in range(n)]
 
     @classmethod
