@@ -14,7 +14,7 @@ class SudokuModelRepository:
         return list(query)
 
     @classmethod
-    def get_random(cls, n: int, candidate_type: SudokuModelCandidateType) -> Optional[SudokuModel]:
+    def get_random(cls, n: Optional[int] = None, candidate_type: Optional[SudokuModelCandidateType] = None) -> Optional[SudokuModel]:
         entries: List[SudokuModel] = cls.get_all(n=n, candidate_type=candidate_type)
         if not entries:
             return None
