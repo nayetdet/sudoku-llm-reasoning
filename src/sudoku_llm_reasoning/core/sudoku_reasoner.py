@@ -7,7 +7,7 @@ import google.generativeai as genai
 from typing import Tuple, Dict, Any
 from google.generativeai import GenerativeModel
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuCandidate
-from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuUnsolvableException, SudokuAlreadySolvedException, SudokuInvalidLLMSolutionException
+from src.sudoku_llm_reasoning.exceptions.sudoku_reasoner_exceptions import SudokuReasonerUnsolvableException, SudokuReasonerAlreadySolvedException, SudokuReasonerInvalidSolutionException
 from src.sudoku_llm_reasoning.mappers.sudoku_mapper import SudokuMapper
 from src.sudoku_llm_reasoning.schemas.sudoku_schemas import SudokuLLMSolutionSchema
 
@@ -19,14 +19,14 @@ class SudokuReasoner:
     def analyze(self, sudoku: Sudoku) -> None:
         logging.info(f"Analyzing the following Sudoku: {sudoku}")
         if not sudoku.is_solvable_nth_layer():
-            raise SudokuUnsolvableException("The Sudoku is unsolvable; neither the Single Candidate Principle nor the Consensus Principle can be applied")
+            raise SudokuReasonerUnsolvableException("The Sudoku is unsolvable; neither the Single Candidate Principle nor the Consensus Principle can be applied")
 
         if sudoku.is_solved():
-            raise SudokuAlreadySolvedException("The Sudoku is already complete and solved")
+            raise SudokuReasonerAlreadySolvedException("The Sudoku is already complete and solved")
 
         llm_solution: SudokuLLMSolutionSchema = self.solve(sudoku)
         if llm_solution.final_grid not in (x.grid for x in sudoku.solutions):
-            raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect and does not match any valid Sudoku solution")
+            raise SudokuReasonerInvalidSolutionException("The LLM-provided solution is incorrect and does not match any valid Sudoku solution")
 
         for llm_step in llm_solution.steps:
             candidates_0th_layer_without_inference: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_without_inference
@@ -54,7 +54,7 @@ class SudokuReasoner:
             sudoku = sudoku.next_step_at_position(*llm_step.position, llm_step.value)
             logging.info(f"Sudoku: {sudoku}")
             if not sudoku.is_solvable_nth_layer():
-                raise SudokuInvalidLLMSolutionException("The LLM-provided solution is incorrect; a step made the Sudoku unsolvable")
+                raise SudokuReasonerInvalidSolutionException("The LLM-provided solution is incorrect; a step made the Sudoku unsolvable")
 
         logging.info("Analysis completed successfully for the Sudoku")
 
@@ -117,7 +117,7 @@ class SudokuReasoner:
         sanitized_text: str = re.sub(r"(^```json\s*)|(```$)", "", text.strip())
         data: Dict[str, Any] = json.loads(sanitized_text)
         if "error" in data and data.get("error") == "unsolvable":
-            raise SudokuUnsolvableException("The LLM reported the Sudoku as unsolvable")
+            raise SudokuReasonerUnsolvableException("The LLM reported the Sudoku as unsolvable")
 
         solution: SudokuLLMSolutionSchema = SudokuMapper.to_llm_solution_schema(data)
         logging.info("LLM response received and processed into Sudoku solution schema")
