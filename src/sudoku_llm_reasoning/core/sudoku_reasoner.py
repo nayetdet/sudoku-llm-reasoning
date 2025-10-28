@@ -29,23 +29,23 @@ class SudokuReasoner:
             raise SudokuReasonerInvalidSolutionException("The LLM-provided solution is incorrect and does not match any valid Sudoku solution")
 
         for llm_step in llm_solution.steps:
-            candidates_0th_layer_without_inference: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_without_inference
+            candidates_0th_layer_plain: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_plain
             candidates_0th_layer_naked_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer_hidden_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer
-            candidates_1th_layer_partial_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_partial_consensus
-            candidates_1th_layer_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_consensus
+            candidates_1st_layer_partial_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_partial_consensus
+            candidates_1st_layer_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_consensus
 
             logging.info("")
             logging.info(f"Step #{llm_step.step}: inserting '{llm_step.value}' into {tuple(llm_step.position)}")
             logging.info(f"Explanation: {llm_step.explanation}")
             logging.info(f"Candidates (LLM): {list(llm_step.candidates_before)}")
-            logging.info(f"Candidates (Z3 — 0th layer candidates without inference): {[x.value for x in candidates_0th_layer_without_inference if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 0th layer plain candidates): {[x.value for x in candidates_0th_layer_plain if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 0th layer naked single candidates): {[x.value for x in candidates_0th_layer_naked_singles if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 0th layer hidden single candidates): {[x.value for x in candidates_0th_layer_hidden_singles if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 0th layer candidates): {[x.value for x in candidates_0th_layer if x.position == llm_step.position]}")
-            logging.info(f"Candidates (Z3 — 1th layer partial consensus candidates): {[x.value for x in candidates_1th_layer_partial_consensus if x.position == llm_step.position]}")
-            logging.info(f"Candidates (Z3 — 1th layer consensus candidates): {[x.value for x in candidates_1th_layer_consensus if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 1st layer partial consensus candidates): {[x.value for x in candidates_1st_layer_partial_consensus if x.position == llm_step.position]}")
+            logging.info(f"Candidates (Z3 — 1st layer consensus candidates): {[x.value for x in candidates_1st_layer_consensus if x.position == llm_step.position]}")
 
             if any(x.value == llm_step.value and x.position == llm_step.position for x in itertools.chain(candidates_0th_layer_naked_singles, candidates_0th_layer_hidden_singles)):
                 logging.info("The step was resolved using the Single Candidate Principle")
