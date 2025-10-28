@@ -22,7 +22,7 @@ class SudokuModelRepository:
 
     @classmethod
     def create(cls, sudoku_model: SudokuModel) -> SudokuModel:
-        return sudoku_model.create()
+        return sudoku_model.save()
 
     @classmethod
     def count(cls) -> int:

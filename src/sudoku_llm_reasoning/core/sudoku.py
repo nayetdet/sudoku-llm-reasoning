@@ -22,7 +22,7 @@ class Sudoku:
             raise SudokuInvalidSizeException("Grid size must be a perfect square")
 
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
-        self.__candidates_0th_layer_without_inference: Optional[Tuple["SudokuCandidate"], ...] = None
+        self.__candidates_0th_layer_plain: Optional[Tuple["SudokuCandidate"], ...] = None
         self.__candidates_0th_layer_naked_singles: Optional[Tuple["SudokuCandidate", ...]] = None
         self.__candidates_0th_layer_hidden_singles: Optional[Tuple["SudokuCandidate", ...]] = None
         self.__candidates_0th_layer: Optional[Tuple["SudokuCandidate", ...]] = None
@@ -57,7 +57,7 @@ class Sudoku:
     @property
     def grid_blocks(self) -> Tuple[Tuple[int, ...], ...]:
         blocks: List[List[int]] = []
-        n, n_isqrt = self.sizes()
+        n, n_isqrt = self.shape()
         for i0, j0 in itertools.product(range(0, n, n_isqrt), range(0, n, n_isqrt)):
             block: List[int] = [self.grid[i0 + i][j0 + j] for i in range(n_isqrt) for j in range(n_isqrt)]
             blocks.append(block)
@@ -81,7 +81,7 @@ class Sudoku:
     @property
     def grid_blocks_with_positions(self) -> Tuple[Tuple[Tuple[int, Tuple[int,int]], ...], ...]:
         blocks: List[Tuple[Tuple[int, Tuple[int,int]], ...]] = []
-        n, n_isqrt = self.sizes()
+        n, n_isqrt = self.shape()
         for i0, j0 in itertools.product(range(0, n, n_isqrt), range(0, n, n_isqrt)):
             block: Tuple[Tuple[int, Tuple[int,int]], ...] = tuple(
                 (self.grid[i0 + i][j0 + j], (i0 + i, j0 + j))
@@ -92,10 +92,10 @@ class Sudoku:
         return tuple(blocks)
 
     @property
-    def candidates_0th_layer_without_inference(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_0th_layer_without_inference is None:
-            self.__candidates_0th_layer_without_inference = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER_WITHOUT_INFERENCE)
-        return self.__candidates_0th_layer_without_inference
+    def candidates_0th_layer_plain(self) -> Tuple["SudokuCandidate", ...]:
+        if self.__candidates_0th_layer_plain is None:
+            self.__candidates_0th_layer_plain = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER_PLAIN)
+        return self.__candidates_0th_layer_plain
 
     @property
     def candidates_0th_layer_naked_singles(self) -> Tuple["SudokuCandidate", ...]:
@@ -140,11 +140,14 @@ class Sudoku:
         return self.__solutions
 
     def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
-        n, n_isqrt = self.sizes()
+        n, n_isqrt = self.shape()
         ii: int = (i // n_isqrt) * n_isqrt + (j // n_isqrt)
         return self.grid_blocks[ii]
 
-    def sizes(self) -> Tuple[int, int]:
+    def area(self) -> int:
+        return len(self) ** 2
+
+    def shape(self) -> Tuple[int, int]:
         n: int = len(self)
         return n, math.isqrt(n)
 
@@ -176,7 +179,7 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
-    def candidate_values_0th_layer_without_inference_at_position(self, i: int, j: int) -> Set[int]:
+    def candidate_values_0th_layer_plain_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
 
@@ -195,10 +198,10 @@ class Sudoku:
         if self.grid[i][j] != 0:
             return set()
 
-        n, n_isqrt = self.sizes()
+        n, n_isqrt = self.shape()
         base_candidates_grid: List[List[Set[int]]] = [
             [
-                self.candidate_values_0th_layer_without_inference_at_position(ii, jj)
+                self.candidate_values_0th_layer_plain_at_position(ii, jj)
                 for jj in range(n)
             ]
             for ii in range(n)
@@ -219,13 +222,14 @@ class Sudoku:
             if is_unique_in_row or is_unique_in_column or is_unique_in_block:
                 candidates.add(x)
 
+        candidates -= self.candidate_values_0th_layer_naked_singles_at_position(i, j)
         return candidates if len(candidates) == 1 else set()
 
     def candidate_values_0th_layer_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
 
-        base_candidates: Set[int] = self.candidate_values_0th_layer_without_inference_at_position(i, j)
+        base_candidates: Set[int] = self.candidate_values_0th_layer_plain_at_position(i, j)
         naked_candidates: Set[int] = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
         hidden_candidates: Set[int] = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
         return base_candidates if not naked_candidates and not hidden_candidates else naked_candidates | hidden_candidates
@@ -299,7 +303,7 @@ class Sudoku:
 
     def solve(self, max_solutions: Optional[int] = None) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid
-        n, n_isqrt = self.sizes()
+        n, n_isqrt = self.shape()
         cells: List[List[Int]] = [
             [
                 Int(f"x_{i + 1}_{j + 1}")
@@ -332,8 +336,8 @@ class Sudoku:
             for j in range(n)
         ]
 
-        # Rule: Every digit has to be placed exactly once in each isqrt(n) x isqrt(n) subgrid
-        subgrid_constraints: List[BoolRef] = [
+        # Rule: Every digit has to be placed exactly once in each isqrt(n) x isqrt(n) block
+        block_constraints: List[BoolRef] = [
             Distinct(
                 [
                     cells[i0 + i][j0 + j]
@@ -353,7 +357,7 @@ class Sudoku:
         ]
 
         solver: Solver = Solver()
-        solver.add(cell_constraints + row_constraints + column_constraints + subgrid_constraints + instance_constraints)
+        solver.add(cell_constraints + row_constraints + column_constraints + block_constraints + instance_constraints)
         if solver.check() != sat:
             return ()
 
@@ -390,7 +394,7 @@ class Sudoku:
         for i, j in itertools.product(range(n), range(n)):
             values: Set[int] = set()
             match candidate_type:
-                case SudokuCandidateType.ZEROTH_LAYER_WITHOUT_INFERENCE: values = self.candidate_values_0th_layer_without_inference_at_position(i, j)
+                case SudokuCandidateType.ZEROTH_LAYER_PLAIN: values = self.candidate_values_0th_layer_plain_at_position(i, j)
                 case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: values = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
                 case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: values = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
                 case SudokuCandidateType.ZEROTH_LAYER: values = self.candidate_values_0th_layer_at_position(i, j)
