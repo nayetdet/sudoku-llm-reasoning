@@ -3,6 +3,7 @@ import math
 from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import List, Tuple, Optional, Set, Dict, Any
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.enums.sudoku_candidate_type import SudokuCandidateType
@@ -55,6 +56,7 @@ class Sudoku:
         return tuple(zip(*self.grid))
 
     @property
+    @lru_cache(maxsize=None)
     def grid_blocks(self) -> Tuple[Tuple[int, ...], ...]:
         blocks: List[List[int]] = []
         n, n_isqrt = self.shape()
@@ -64,6 +66,7 @@ class Sudoku:
         return tuple(tuple(x) for x in blocks)
 
     @property
+    @lru_cache(maxsize=None)
     def grid_rows_with_positions(self) -> Tuple[Tuple[Tuple[int, Tuple[int,int]], ...], ...]:
         return tuple(
             tuple((value, (i, j)) for j, value in enumerate(row))
@@ -71,6 +74,7 @@ class Sudoku:
         )
 
     @property
+    @lru_cache(maxsize=None)
     def grid_columns_with_positions(self) -> Tuple[Tuple[Tuple[int, Tuple[int,int]], ...], ...]:
         n: int = len(self.grid)
         return tuple(
@@ -79,6 +83,7 @@ class Sudoku:
         )
 
     @property
+    @lru_cache(maxsize=None)
     def grid_blocks_with_positions(self) -> Tuple[Tuple[Tuple[int, Tuple[int,int]], ...], ...]:
         blocks: List[Tuple[Tuple[int, Tuple[int,int]], ...]] = []
         n, n_isqrt = self.shape()
@@ -179,6 +184,7 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
+    @lru_cache(maxsize=None)
     def candidate_values_0th_layer_plain_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -186,6 +192,7 @@ class Sudoku:
         n: int = len(self)
         return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j))) - {0}
 
+    @lru_cache(maxsize=None)
     def candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -194,6 +201,7 @@ class Sudoku:
         candidates: Set[int] = set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j)) - {0}
         return candidates if len(candidates) == 1 else set()
 
+    @lru_cache(maxsize=None)
     def candidate_values_0th_layer_hidden_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -225,6 +233,7 @@ class Sudoku:
         candidates -= self.candidate_values_0th_layer_naked_singles_at_position(i, j)
         return candidates if len(candidates) == 1 else set()
 
+    @lru_cache(maxsize=None)
     def candidate_values_0th_layer_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -234,6 +243,7 @@ class Sudoku:
         hidden_candidates: Set[int] = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
         return base_candidates if not naked_candidates and not hidden_candidates else naked_candidates | hidden_candidates
 
+    @lru_cache(maxsize=None)
     def candidate_values_1st_layer_partial_consensus_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -245,6 +255,7 @@ class Sudoku:
                 candidates.remove(candidate)
         return candidates
 
+    @lru_cache(maxsize=None)
     def candidate_values_1st_layer_consensus_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -292,6 +303,7 @@ class Sudoku:
         base_candidates: Set[int] = self.candidate_values_1st_layer_partial_consensus_at_position(i, j)
         return candidates if candidates else base_candidates
 
+    @lru_cache(maxsize=None)
     def candidate_values_nth_layer_at_position(self, i: int, j: int) -> Set[int]:
         n: int = len(self)
         candidates: Set[int] = set()
