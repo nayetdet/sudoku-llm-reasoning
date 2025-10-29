@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "nayetdet", email = "jpmoreiracampos21@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11, <3.12"
 dependencies = [
     "google-generativeai>=0.8.5",
     "pydantic>=2.11.9",
@@ -21,4 +21,9 @@ scripts = [
 tests = [
     "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
+]
+
+[tool.uv.workspace]
+members = [
+    "PYTHON=/home/nayetdet/.asdf/installs/python/pypy3.11-7.3.20",
 ]
