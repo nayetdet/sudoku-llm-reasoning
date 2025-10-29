@@ -1,4 +1,7 @@
-.PHONY: db-dump db-view tests
+.PHONY: sync db-dump db-view tests
+
+sync:
+	uv sync --all-groups
 
 db-dump:
 	PYTHONPATH=. uv run scripts/sudoku_db_generator.py
