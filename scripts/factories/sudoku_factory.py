@@ -6,7 +6,7 @@ from scripts.utils.sudoku_utils import SudokuUtils
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku, SudokuCandidate
 
 class SudokuFactory:
-    MAX_GENERATION_ATTEMPTS: int = 1000
+    __MAX_GENERATION_ATTEMPTS: int = 1000
 
     def __init__(self, n: int, max_solutions: Optional[int] = None) -> None:
         self.__sudoku: Sudoku = SudokuUtils.get_empty_sudoku(n=n)
@@ -23,7 +23,7 @@ class SudokuFactory:
         return random.choice(self.__sudoku_solutions)
 
     def get_sudoku_by_candidate_type(self, candidate_type: SudokuModelCandidateType) -> Optional[Sudoku]:
-        for attempt in range(self.MAX_GENERATION_ATTEMPTS):
+        for attempt in range(self.__MAX_GENERATION_ATTEMPTS):
             sudoku: Sudoku = self.get_solved_sudoku()
             naked_singles_min_removed_cells: int = math.ceil(sudoku.area() * 0.25)
 
