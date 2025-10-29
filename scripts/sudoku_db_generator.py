@@ -12,7 +12,7 @@ from scripts.repositories.sudoku_model_repository import SudokuModelRepository
 from src.sudoku_llm_reasoning.core.sudoku import Sudoku
 
 class SudokuDBGenerator:
-    MAX_GENERATION_ATTEMPTS: int = 150
+    __MAX_GENERATION_ATTEMPTS: int = 150
 
     def __init__(self) -> None:
         self.__factories: Dict[int, SudokuFactory] = {
@@ -24,15 +24,13 @@ class SudokuDBGenerator:
         }
 
     def generate(self) -> None:
-        models: Dict[SudokuModelCandidateType, List[SudokuModel]] = defaultdict(list)
-        models_initial_count: int = SudokuModelRepository.count()
-
         tasks: List[Tuple[int, int, SudokuModelCandidateType]] = []
         for n in self.__factories.keys():
             for candidate_type in SudokuModelCandidateType:
-                for attempt in range(1, self.MAX_GENERATION_ATTEMPTS + 1):
+                for attempt in range(1, self.__MAX_GENERATION_ATTEMPTS + 1):
                     tasks.append((attempt, n, candidate_type))
 
+        models_initial_count: int = SudokuModelRepository.count()
         successful_generations: Dict[Tuple[int, SudokuModelCandidateType], int] = defaultdict(int)
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
             futures: Dict[Future[Optional[SudokuModel]], Tuple[int, int, SudokuModelCandidateType]] = {
@@ -43,22 +41,21 @@ class SudokuDBGenerator:
             for future in as_completed(futures):
                 attempt, n, candidate_type = futures[future]
                 try:
-                    sudoku_model: Optional[SudokuModel] = future.result()
-                    if sudoku_model is None:
-                        logging.info(f"Attempt #{attempt} ({n}x{n} grid | {candidate_type.name}): Sudoku generation failed")
+                    model: Optional[SudokuModel] = future.result()
+                    if model is None:
+                        logging.info(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Sudoku generation failed")
                         continue
 
-                    if SudokuModelRepository.create(sudoku_model):
-                        models[candidate_type].append(sudoku_model)
+                    if SudokuModelRepository.create(model):
                         successful_generations[(n, candidate_type)] += 1
-                        logging.info(f"Attempt #{attempt} ({n}x{n} grid | {candidate_type.name}): Sudoku generation succeeded ({len(models[candidate_type])}/{self.MAX_GENERATION_ATTEMPTS})")
-                    else: logging.info(f"Attempt #{attempt} ({n}x{n} grid | {candidate_type.name}): Sudoku already exists, skipping")
+                        logging.info(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Sudoku generation succeeded ({successful_generations[(n, candidate_type)]}/{self.__MAX_GENERATION_ATTEMPTS})")
+                    else: logging.info(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Sudoku already exists, skipping")
                 except Exception as e:
-                    logging.error(f"Attempt #{attempt} ({n}x{n} grid | {candidate_type.name}): Error — {e}")
+                    logging.error(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Error — {e}")
 
         for (n, candidate_type), count in successful_generations.items():
-            if count < self.MAX_GENERATION_ATTEMPTS:
-                logging.warning(f"Could only generate {models_initial_count}/{self.MAX_GENERATION_ATTEMPTS} {n}x{n} grids for candidate type: {candidate_type.name}")
+            if count < self.__MAX_GENERATION_ATTEMPTS:
+                logging.warning(f"Could only generate {models_initial_count}/{self.__MAX_GENERATION_ATTEMPTS} {n}x{n} grids for candidate type: {candidate_type.name}")
         logging.info(f"Total new entries: {models_initial_count}")
 
     def _generate_single(self, n: int, candidate_type: SudokuModelCandidateType) -> Optional[SudokuModel]:
