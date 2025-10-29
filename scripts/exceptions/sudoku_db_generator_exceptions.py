@@ -1,2 +1,0 @@
-class SudokuDBGeneratorNotEmptyException(Exception):
-    pass

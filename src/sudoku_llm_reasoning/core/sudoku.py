@@ -1,7 +1,6 @@
 import itertools
 import math
 from collections import defaultdict
-from copy import copy
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import List, Tuple, Optional, Set, Dict, Any
@@ -53,7 +52,7 @@ class Sudoku:
     def grid(self) -> Tuple[Tuple[int, ...], ...]:
         return self.__grid
 
-    @property
+    @cached_property
     def grid_columns(self) -> Tuple[Tuple[int, ...], ...]:
         return tuple(zip(*self.grid))
 
@@ -161,15 +160,11 @@ class Sudoku:
         return all(all(cell != 0 for cell in row) for row in self.grid)
 
     def is_solvable_0th_layer(self) -> bool:
-        def has_no_duplicates(cells: Tuple[int, ...]) -> bool:
-            nums: List[int] = [x for x in cells if x != 0]
-            return len(nums) == len(set(nums))
-
-        return (
-            all(has_no_duplicates(x) for x in self.grid)
-            and all(has_no_duplicates(x) for x in self.grid_columns)
-            and all(has_no_duplicates(x) for x in self.grid_blocks)
-        )
+        for region in self.grid + self.grid_columns + self.grid_blocks:
+            filtered_region: List[int] = [x for x in region if x != 0]
+            if len(filtered_region) != len(set(filtered_region)):
+                return False
+        return True
 
     def is_solvable_nth_layer(self) -> bool:
         return len(self.solutions) > 0
@@ -188,7 +183,7 @@ class Sudoku:
             return set()
 
         n: int = len(self)
-        return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j))) - {0}
+        return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j)))
 
     @lru_cache(maxsize=__CACHE_MAXSIZE)
     def candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
@@ -196,7 +191,7 @@ class Sudoku:
             return set()
 
         n: int = len(self)
-        candidates: Set[int] = set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j)) - {0}
+        candidates: Set[int] = set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j))
         return candidates if len(candidates) == 1 else set()
 
     @lru_cache(maxsize=__CACHE_MAXSIZE)
@@ -247,7 +242,7 @@ class Sudoku:
             return set()
 
         candidates: Set[int] = self.candidate_values_0th_layer_at_position(i, j)
-        for candidate in copy(candidates):
+        for candidate in list(candidates):
             next_sudoku: Sudoku = self.next_step_at_position(i, j, candidate)
             if not next_sudoku.is_solvable_0th_layer():
                 candidates.remove(candidate)

@@ -1,6 +1,6 @@
-from scripts.models.base_model import db
-from scripts.models.sudoku_model import SudokuModel
+from sqlalchemy.orm import DeclarativeBase
 
-def load_database() -> None:
-    db.connect()
-    db.create_tables([SudokuModel])
+class ModelBase(DeclarativeBase):
+    pass
+
+from .sudoku_model import SudokuModel
