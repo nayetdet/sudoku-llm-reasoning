@@ -10,7 +10,7 @@ class SudokuDBReader:
             table.append((
                 sudoku.id,
                 sudoku.n,
-                sudoku.candidate_type,
+                sudoku.candidate_type.value,
                 sudoku.grid
             ))
 

@@ -14,6 +14,6 @@ class SudokuMapper:
     def to_sudoku_model(cls, sudoku: Sudoku, candidate_type: SudokuModelCandidateType) -> SudokuModel:
         return SudokuModel(
             n=len(sudoku),
-            candidate_type=candidate_type.value,
+            candidate_type=candidate_type,
             grid=json.dumps(sudoku.grid)
         )
