@@ -19,7 +19,7 @@ class SudokuDBGenerator:
             factory.n: factory
             for factory in [
                 SudokuFactory(n=4),
-                SudokuFactory(n=9, max_solutions=10000)
+                # SudokuFactory(n=9, max_solutions=10000)
             ]
         }
 

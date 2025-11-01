@@ -23,7 +23,7 @@ class SudokuFactory:
         return random.choice(self.__sudoku_solutions)
 
     def get_sudoku_by_candidate_type(self, candidate_type: SudokuModelCandidateType) -> Optional[Sudoku]:
-        for attempt in range(self.__MAX_GENERATION_ATTEMPTS):
+        for _ in range(self.__MAX_GENERATION_ATTEMPTS):
             sudoku: Sudoku = self.get_solved_sudoku()
             naked_singles_min_removed_cells: int = math.ceil(sudoku.area() * 0.25)
 
