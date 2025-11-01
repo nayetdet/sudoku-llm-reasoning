@@ -44,8 +44,6 @@ class SudokuFactory:
                         if sudoku.candidates_0th_layer_naked_singles or sudoku.candidates_0th_layer_hidden_singles:
                             continue
                         candidates = sudoku.candidates_1st_layer_consensus
-                        if candidates == sudoku.candidates_1st_layer_consensus:
-                            continue
 
                 if candidates:
                     return sudoku

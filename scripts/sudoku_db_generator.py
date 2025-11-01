@@ -19,7 +19,7 @@ class SudokuDBGenerator:
             factory.n: factory
             for factory in [
                 SudokuFactory(n=4),
-                # SudokuFactory(n=9, max_solutions=10000)
+                SudokuFactory(n=9, max_solutions=1000)
             ]
         }
 
@@ -30,7 +30,6 @@ class SudokuDBGenerator:
                 for attempt in range(1, self.__MAX_GENERATION_ATTEMPTS + 1):
                     tasks.append((attempt, n, candidate_type))
 
-        models_initial_count: int = SudokuModelRepository.count()
         successful_generations: Dict[Tuple[int, SudokuModelCandidateType], int] = defaultdict(int)
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
             futures: Dict[Future[Optional[SudokuModel]], Tuple[int, int, SudokuModelCandidateType]] = {
@@ -52,11 +51,6 @@ class SudokuDBGenerator:
                     else: logging.info(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Sudoku already exists, skipping")
                 except Exception as e:
                     logging.error(f"Attempt #{attempt:03d} ({n}x{n} grid | {candidate_type.name}): Error — {e}")
-
-        for (n, candidate_type), count in successful_generations.items():
-            if count < self.__MAX_GENERATION_ATTEMPTS:
-                logging.warning(f"Could only generate {models_initial_count}/{self.__MAX_GENERATION_ATTEMPTS} {n}x{n} grids for candidate type: {candidate_type.name}")
-        logging.info(f"Total new entries: {models_initial_count}")
 
     def _generate_single(self, n: int, candidate_type: SudokuModelCandidateType) -> Optional[SudokuModel]:
         factory: SudokuFactory = self.__factories[n]

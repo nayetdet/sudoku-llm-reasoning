@@ -37,7 +37,6 @@ def test_example_consensus_sudoku() -> None:
     assert not sudoku.candidates_0th_layer_naked_singles
     assert not sudoku.candidates_0th_layer_hidden_singles
     assert sudoku.candidates_1st_layer_consensus
-    assert sudoku.candidates_1st_layer_consensus != sudoku.candidates_1st_layer_partial_consensus
 
 def test_consensus_sudoku() -> None:
     sudoku_models: List[SudokuModel] = SudokuModelRepository.get_all(candidate_type=SudokuModelCandidateType.FIRST_LAYER_CONSENSUS)
@@ -47,4 +46,3 @@ def test_consensus_sudoku() -> None:
         assert not sudoku.candidates_0th_layer_naked_singles
         assert not sudoku.candidates_0th_layer_hidden_singles
         assert sudoku.candidates_1st_layer_consensus
-        assert sudoku.candidates_1st_layer_consensus != sudoku.candidates_1st_layer_partial_consensus

@@ -18,7 +18,7 @@ class SudokuReasoner:
 
     def analyze(self, sudoku: Sudoku) -> None:
         logging.info(f"Analyzing the following Sudoku: {sudoku}")
-        if not sudoku.is_solvable_nth_layer():
+        if not sudoku.is_solvable():
             raise SudokuReasonerUnsolvableException("The Sudoku is unsolvable; neither the Single Candidate Principle nor the Consensus Principle can be applied")
 
         if sudoku.is_solved():
@@ -33,7 +33,6 @@ class SudokuReasoner:
             candidates_0th_layer_naked_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer_hidden_singles: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer_hidden_singles
             candidates_0th_layer: Tuple[SudokuCandidate, ...] = sudoku.candidates_0th_layer
-            candidates_1st_layer_partial_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_partial_consensus
             candidates_1st_layer_consensus: Tuple[SudokuCandidate, ...] = sudoku.candidates_1st_layer_consensus
 
             logging.info("")
@@ -44,7 +43,6 @@ class SudokuReasoner:
             logging.info(f"Candidates (Z3 — 0th layer naked single candidates): {[x.value for x in candidates_0th_layer_naked_singles if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 0th layer hidden single candidates): {[x.value for x in candidates_0th_layer_hidden_singles if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 0th layer candidates): {[x.value for x in candidates_0th_layer if x.position == llm_step.position]}")
-            logging.info(f"Candidates (Z3 — 1st layer partial consensus candidates): {[x.value for x in candidates_1st_layer_partial_consensus if x.position == llm_step.position]}")
             logging.info(f"Candidates (Z3 — 1st layer consensus candidates): {[x.value for x in candidates_1st_layer_consensus if x.position == llm_step.position]}")
 
             if any(x.value == llm_step.value and x.position == llm_step.position for x in itertools.chain(candidates_0th_layer_naked_singles, candidates_0th_layer_hidden_singles)):
@@ -53,7 +51,7 @@ class SudokuReasoner:
 
             sudoku = sudoku.next_step_at_position(*llm_step.position, llm_step.value)
             logging.info(f"Sudoku: {sudoku}")
-            if not sudoku.is_solvable_nth_layer():
+            if not sudoku.is_solvable():
                 raise SudokuReasonerInvalidSolutionException("The LLM-provided solution is incorrect; a step made the Sudoku unsolvable")
 
         logging.info("Analysis completed successfully for the Sudoku")
