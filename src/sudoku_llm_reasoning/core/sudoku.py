@@ -1,9 +1,12 @@
 import itertools
 import math
+from cachetools import Cache, LRUCache, cachedmethod
+from cachetools.keys import hashkey
 from collections import defaultdict
+from copy import copy
 from dataclasses import dataclass
-from functools import cached_property, lru_cache
-from typing import List, Tuple, Optional, Set, Dict, Any
+from functools import cached_property
+from typing import Self, List, Tuple, Set, Dict, Optional, Sequence, Any
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from src.sudoku_llm_reasoning.enums.sudoku_candidate_type import SudokuCandidateType
 from src.sudoku_llm_reasoning.exceptions.sudoku_exceptions import SudokuInvalidSizeException
@@ -14,23 +17,21 @@ class SudokuCandidate:
     position: Tuple[int, int]
 
 class Sudoku:
-    __CACHE_MAXSIZE: int = 81
-
-    def __init__(self, grid: List[List[int]]) -> None:
+    def __new__(cls, grid: Sequence[Sequence[int]]) -> Self:
         if any(len(row) != len(grid) for row in grid):
             raise SudokuInvalidSizeException("Grid must be square")
-
         if len(grid) != math.isqrt(len(grid)) ** 2:
             raise SudokuInvalidSizeException("Grid size must be a perfect square")
+        return super().__new__(cls)
+
+    def __init__(self, grid: Sequence[Sequence[int]]) -> None:
+        cache_maxsize: int = len(grid) ** 2
+        self.__cache: Dict[SudokuCandidateType, Cache] = {
+            candidate_type: LRUCache(maxsize=cache_maxsize)
+            for candidate_type in SudokuCandidateType
+        }
 
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
-        self.__candidates_0th_layer_plain: Optional[Tuple["SudokuCandidate"], ...] = None
-        self.__candidates_0th_layer_naked_singles: Optional[Tuple["SudokuCandidate", ...]] = None
-        self.__candidates_0th_layer_hidden_singles: Optional[Tuple["SudokuCandidate", ...]] = None
-        self.__candidates_0th_layer: Optional[Tuple["SudokuCandidate", ...]] = None
-        self.__candidates_1st_layer_partial_consensus: Optional[Tuple["SudokuCandidate", ...]] = None
-        self.__candidates_1st_layer_consensus: Optional[Tuple["SudokuCandidate", ...]] = None
-        self.__candidates_nth_layer: Optional[Tuple["SudokuCandidate", ...]] = None
         self.__solutions: Optional[Tuple["Sudoku", ...]] = None
 
     def __len__(self) -> int:
@@ -40,13 +41,16 @@ class Sudoku:
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return f"Sudoku({self.__grid})"
+        return f"Sudoku({self.grid})"
 
     def __hash__(self) -> int:
         return hash(self.grid)
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, Sudoku) and self.grid == other.grid
+
+    def __getnewargs__(self) -> Tuple[Sequence[Sequence[int]],]:
+        return (self.grid,)
 
     @property
     def grid(self) -> Tuple[Tuple[int, ...], ...]:
@@ -93,47 +97,33 @@ class Sudoku:
             blocks.append(block)
         return tuple(blocks)
 
-    @property
+    @cached_property
     def candidates_0th_layer_plain(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_0th_layer_plain is None:
-            self.__candidates_0th_layer_plain = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER_PLAIN)
-        return self.__candidates_0th_layer_plain
+        return self.__solve_all_candidates(SudokuCandidateType.ZEROTH_LAYER_PLAIN)
 
-    @property
+    @cached_property
     def candidates_0th_layer_naked_singles(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_0th_layer_naked_singles is None:
-            self.__candidates_0th_layer_naked_singles = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES)
-        return self.__candidates_0th_layer_naked_singles
+        return self.__solve_all_candidates(SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES)
 
-    @property
+    @cached_property
     def candidates_0th_layer_hidden_singles(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_0th_layer_hidden_singles is None:
-            self.__candidates_0th_layer_hidden_singles = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES)
-        return self.__candidates_0th_layer_hidden_singles
+        return self.__solve_all_candidates(SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES)
 
-    @property
+    @cached_property
     def candidates_0th_layer(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_0th_layer is None:
-            self.__candidates_0th_layer = self.__solve_all_candidates(candidate_type=SudokuCandidateType.ZEROTH_LAYER)
-        return self.__candidates_0th_layer
+        return self.__solve_all_candidates(SudokuCandidateType.ZEROTH_LAYER)
 
-    @property
+    @cached_property
     def candidates_1st_layer_partial_consensus(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_1st_layer_partial_consensus is None:
-            self.__candidates_1st_layer_partial_consensus = self.__solve_all_candidates(candidate_type=SudokuCandidateType.FIRST_LAYER_PARTIAL_CONSENSUS)
-        return self.__candidates_1st_layer_partial_consensus
+        return self.__solve_all_candidates(SudokuCandidateType.FIRST_LAYER_PARTIAL_CONSENSUS)
 
-    @property
+    @cached_property
     def candidates_1st_layer_consensus(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_1st_layer_consensus is None:
-            self.__candidates_1st_layer_consensus = self.__solve_all_candidates(candidate_type=SudokuCandidateType.FIRST_LAYER_CONSENSUS)
-        return self.__candidates_1st_layer_consensus
+        return self.__solve_all_candidates(SudokuCandidateType.FIRST_LAYER_CONSENSUS)
 
-    @property
+    @cached_property
     def candidates_nth_layer(self) -> Tuple["SudokuCandidate", ...]:
-        if self.__candidates_nth_layer is None:
-            self.__candidates_nth_layer = self.__solve_all_candidates(candidate_type=SudokuCandidateType.NTH_LAYER)
-        return self.__candidates_nth_layer
+        return self.__solve_all_candidates(SudokuCandidateType.NTH_LAYER)
 
     @property
     def solutions(self) -> Tuple["Sudoku", ...]:
@@ -142,7 +132,7 @@ class Sudoku:
         return self.__solutions
 
     def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
-        n, n_isqrt = self.shape()
+        _, n_isqrt = self.shape()
         ii: int = (i // n_isqrt) * n_isqrt + (j // n_isqrt)
         return self.grid_blocks[ii]
 
@@ -167,7 +157,7 @@ class Sudoku:
         return True
 
     def is_solvable_nth_layer(self) -> bool:
-        return len(self.solutions) > 0
+        return bool(self.solve(max_solutions=1))
 
     def is_solved(self) -> bool:
         return self.is_full() and self.is_solvable_nth_layer()
@@ -177,7 +167,7 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.ZEROTH_LAYER_PLAIN], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_0th_layer_plain_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -185,7 +175,7 @@ class Sudoku:
         n: int = len(self)
         return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j)))
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -194,7 +184,7 @@ class Sudoku:
         candidates: Set[int] = set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j))
         return candidates if len(candidates) == 1 else set()
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_0th_layer_hidden_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -226,7 +216,7 @@ class Sudoku:
         candidates -= self.candidate_values_0th_layer_naked_singles_at_position(i, j)
         return candidates if len(candidates) == 1 else set()
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.ZEROTH_LAYER], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_0th_layer_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -236,19 +226,19 @@ class Sudoku:
         hidden_candidates: Set[int] = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
         return base_candidates if not naked_candidates and not hidden_candidates else naked_candidates | hidden_candidates
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.FIRST_LAYER_PARTIAL_CONSENSUS], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_1st_layer_partial_consensus_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
 
         candidates: Set[int] = self.candidate_values_0th_layer_at_position(i, j)
-        for candidate in list(candidates):
+        for candidate in copy(candidates):
             next_sudoku: Sudoku = self.next_step_at_position(i, j, candidate)
             if not next_sudoku.is_solvable_0th_layer():
                 candidates.remove(candidate)
         return candidates
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.FIRST_LAYER_CONSENSUS], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_1st_layer_consensus_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -296,8 +286,11 @@ class Sudoku:
         base_candidates: Set[int] = self.candidate_values_1st_layer_partial_consensus_at_position(i, j)
         return candidates if candidates else base_candidates
 
-    @lru_cache(maxsize=__CACHE_MAXSIZE)
+    @cachedmethod(lambda self: self.__cache[SudokuCandidateType.NTH_LAYER], key=lambda self, i, j: hashkey(self.grid, i, j))
     def candidate_values_nth_layer_at_position(self, i: int, j: int) -> Set[int]:
+        if self.grid[i][j] != 0:
+            return set()
+
         n: int = len(self)
         candidates: Set[int] = set()
         for candidate in range(1, n + 1):
