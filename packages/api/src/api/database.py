@@ -1,0 +1,17 @@
+from sqlmodel import create_engine
+from sqlalchemy import event
+from api.config import Config
+
+engine = create_engine(
+    url=f"sqlite:///{Config.Paths.DATA / "data.db"}",
+    echo=False,
+    connect_args={
+        "timeout": 30
+    }
+)
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, _):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.close()

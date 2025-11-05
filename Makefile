@@ -1,13 +1,16 @@
-.PHONY: sync dump view tests
+.PHONY: install api api-migrations api-tests webui
 
-sync:
-	uv sync --all-groups
+install:
+	uv sync --all-groups --all-packages
 
-dump:
-	PYTHONPATH=. uv run scripts/sudoku_db_generator.py
+api:
+	cd packages/api && uv run uvicorn src.api.main:app --log-config log-config.json --reload
 
-view:
-	PYTHONPATH=. uv run scripts/sudoku_db_reader.py
+api-migrations:
+	cd packages/api && uv run alembic upgrade head
 
-tests:
-	uv run pytest
+api-tests:
+	cd packages/api && uv run pytest
+
+webui:
+	cd packages/webui && uv run streamlit src/webui/main.py
