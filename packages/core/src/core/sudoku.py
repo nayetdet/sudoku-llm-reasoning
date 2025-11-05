@@ -1,7 +1,5 @@
 import itertools
 import math
-from cachetools import Cache, LRUCache, cachedmethod
-from cachetools.keys import hashkey
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
@@ -9,6 +7,7 @@ from typing import Self, List, Tuple, Set, Dict, Optional, Sequence, Any
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.exceptions.sudoku_exceptions import SudokuInvalidSizeException
+from core.utils.cache_utils import cachemethod
 
 @dataclass(frozen=True)
 class SudokuCandidate:
@@ -24,7 +23,6 @@ class Sudoku:
         return super().__new__(cls)
 
     def __init__(self, grid: Sequence[Sequence[int]]) -> None:
-        self.__cache: Cache = LRUCache(len(SudokuCandidateType) * len(grid) ** 2 + 1)
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
         self.__solutions: Optional[Tuple["Sudoku", ...]] = None
 
@@ -139,7 +137,7 @@ class Sudoku:
     def is_full(self) -> bool:
         return all(all(cell != 0 for cell in row) for row in self.grid)
 
-    @cachedmethod(lambda self: self.__cache)
+    @cachemethod
     def is_solvable(self) -> bool:
         if self.solutions is not None:
             return len(self.solutions) > 0
@@ -153,7 +151,7 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.ZEROTH_LAYER_PLAIN))
+    @cachemethod
     def candidate_values_0th_layer_plain_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -161,7 +159,7 @@ class Sudoku:
         n: int = len(self)
         return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j)))
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES))
+    @cachemethod
     def candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -170,7 +168,7 @@ class Sudoku:
         candidates: Set[int] = set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j))
         return candidates if len(candidates) == 1 else set()
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES))
+    @cachemethod
     def candidate_values_0th_layer_hidden_singles_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -199,7 +197,7 @@ class Sudoku:
         candidates -= self.candidate_values_0th_layer_naked_singles_at_position(i, j)
         return candidates if len(candidates) == 1 else set()
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.ZEROTH_LAYER))
+    @cachemethod
     def candidate_values_0th_layer_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -209,7 +207,7 @@ class Sudoku:
         hidden_candidates: Set[int] = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
         return base_candidates if not naked_candidates and not hidden_candidates else naked_candidates | hidden_candidates
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.FIRST_LAYER_CONSENSUS))
+    @cachemethod
     def candidate_values_1st_layer_consensus_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
@@ -259,7 +257,7 @@ class Sudoku:
                     candidates.add(next(iter(inner_candidates)))
         return candidates if len(candidates) == 1 else set()
 
-    @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.NTH_LAYER))
+    @cachemethod
     def candidate_values_nth_layer_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
             return set()
