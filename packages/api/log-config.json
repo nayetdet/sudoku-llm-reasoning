@@ -4,12 +4,12 @@
     "formatters": {
         "default": {
             "()": "uvicorn.logging.DefaultFormatter",
-            "fmt": "%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s",
+            "fmt": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": "%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(client_addr)s - \"%(request_line)s\" %(status_code)s %(process_time)s",
+            "fmt": "%(asctime)s %(client_addr)s - \"%(request_line)s\" %(status_code)s",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         }
     },
@@ -26,25 +26,14 @@
         }
     },
     "loggers": {
-        "uvicorn": {
-            "level": "INFO",
-            "handlers": [
-                "default"
-            ],
-            "propagate": false
-        },
         "uvicorn.error": {
             "level": "INFO",
-            "handlers": [
-                "default"
-            ],
+            "handlers": ["default"],
             "propagate": false
         },
         "uvicorn.access": {
             "level": "INFO",
-            "handlers": [
-                "access"
-            ],
+            "handlers": ["access"],
             "propagate": false
         }
     }
