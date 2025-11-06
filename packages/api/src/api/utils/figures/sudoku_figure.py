@@ -78,9 +78,11 @@ class SudokuFigure:
     def get_consensus_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
         n: int = len(sudoku)
         figures: List[Figure] = []
-        hip = 3
         for candidate in sudoku.candidates_1st_layer_consensus:
-            fig, axes = self.__subplots(n, narrows=2, n_cols=3)
+            hip_list = sudoku.deduction_chain_1st_layer_consensus(candidate.position[0], candidate.position[1])
+            hip: int  = len(hip_list)
+            print(hip)
+            fig, axes = self.__subplots(n, narrows=2, n_cols= hip)
             self.__plot_sudoku_on_axis(
                 axes[1],
                 sudoku=sudoku,
@@ -92,18 +94,15 @@ class SudokuFigure:
             )
             for i in range(hip):
                 self.__plot_sudoku_on_axis(
-                    axes[i + 1],
+                    axes[1],
                     sudoku=sudoku,
-                    arrow_positions=[
-                        (peer_position, candidate.position)
-                        for peer_position in sudoku.peer_positions_of_position_in_1st_layer(candidate.position, i)
-                    ]
+                    depth= i
                 )
             self.__plot_next_sudoku_on_axis(axes[-1], sudoku=sudoku, sudoku_candidate=candidate)
                 
     def __plot_next_sudoku_on_axis(self, ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
         return self.__plot_sudoku_on_axis(
-            ax=ax,
+            axes=ax,
             sudoku=sudoku.next_step_at_position(*sudoku_candidate.position, sudoku_candidate.value),
             color_positions={
                 SudokuFigureCellColor(text_color=self.__color, background_color=None): [
@@ -117,13 +116,15 @@ class SudokuFigure:
 
     def __plot_sudoku_on_axis(
             self,
-            ax: Axes,
+            axes: Axes,
             sudoku: Sudoku,
+            depth: int = 0, 
             color_positions: Optional[Dict[SudokuFigureCellColor, List[Tuple[int, int]]]] = None,
             candidate_positions: Optional[Dict[SudokuCandidateType, List[Tuple[int, int]]]] = None,
             circle_positions: Optional[List[Tuple[int, int]]] = None,
             arrow_positions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int]]]] = None
     ) -> None:
+        ax: Axes = axes[depth]
         n, n_isqrt = sudoku.shape()
         ax.set_xlim(0, n)
         ax.set_ylim(0, n)
