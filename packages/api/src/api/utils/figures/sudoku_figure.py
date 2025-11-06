@@ -79,30 +79,42 @@ class SudokuFigure:
         n: int = len(sudoku)
         figures: List[Figure] = []
         for candidate in sudoku.candidates_1st_layer_consensus:
-            hip_list = sudoku.deduction_chain_1st_layer_consensus(candidate.position[0], candidate.position[1])
-            hip: int  = len(hip_list)
-            print(hip)
-            fig, axes = self.__subplots(n, narrows=2, n_cols= hip)
-            self.__plot_sudoku_on_axis(
-                axes[1],
-                sudoku=sudoku,
-                candidate_positions={
-                    SudokuCandidateType.FIRST_LAYER_CONSENSUS: [
-                        candidate.position
-                    ]
-                }
-            )
-            for i in range(hip):
+            deduction_chains = sudoku.deduction_chain_1st_layer_consensus(candidate.position[0], candidate.position[1])
+            for deduction_chain in deduction_chains:
+                print(deduction_chain)
+                assumptions: int  = len(deduction_chain)
+                fig, axes = self.__subplots(n, narrows=3, ncols= assumptions)
                 self.__plot_sudoku_on_axis(
-                    axes[1],
+                    ax=axes[0][0],
                     sudoku=sudoku,
-                    depth= i
+                    candidate_positions={
+                        SudokuCandidateType.FIRST_LAYER_CONSENSUS: [
+                            candidate.position
+                        ]
+                    }
                 )
-            self.__plot_next_sudoku_on_axis(axes[-1], sudoku=sudoku, sudoku_candidate=candidate)
+
+                for i in range(assumptions):
+                    inner_sudoku: Sudoku = Sudoku(sudoku.grid)
+                    for (position, value) in deduction_chain[i].consequences:
+                        inner_sudoku =  inner_sudoku.next_step_at_position(*position, value)
+                        self.__plot_sudoku_on_axis(
+                            ax=axes[1][i],
+                            sudoku=inner_sudoku,
+                            color_positions={
+                                SudokuFigureCellColor(text_color=self.__color, background_color=None):  [
+                                    position
+                                ]
+                        }
+                    )
+                self.__plot_next_sudoku_on_axis(axes[-1][-1], sudoku=sudoku, sudoku_candidate=candidate)
+                break
+                
+        return figures
                 
     def __plot_next_sudoku_on_axis(self, ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
         return self.__plot_sudoku_on_axis(
-            axes=ax,
+            ax=ax,
             sudoku=sudoku.next_step_at_position(*sudoku_candidate.position, sudoku_candidate.value),
             color_positions={
                 SudokuFigureCellColor(text_color=self.__color, background_color=None): [
@@ -116,15 +128,13 @@ class SudokuFigure:
 
     def __plot_sudoku_on_axis(
             self,
-            axes: Axes,
+            ax: Axes,
             sudoku: Sudoku,
-            depth: int = 0, 
             color_positions: Optional[Dict[SudokuFigureCellColor, List[Tuple[int, int]]]] = None,
             candidate_positions: Optional[Dict[SudokuCandidateType, List[Tuple[int, int]]]] = None,
             circle_positions: Optional[List[Tuple[int, int]]] = None,
             arrow_positions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int]]]] = None
     ) -> None:
-        ax: Axes = axes[depth]
         n, n_isqrt = sudoku.shape()
         ax.set_xlim(0, n)
         ax.set_ylim(0, n)
@@ -210,9 +220,13 @@ class SudokuFigure:
         ax.add_patch(Rectangle((0, 0), width=n, height=n, fill=False, linewidth=3))
 
     @classmethod
-    def __subplots(cls, n: int, narrows: int, n_cols: int = 1) -> Tuple[Figure, Tuple[Axes, Axes, ...]]:
+    def __subplots(cls, n: int, narrows: int, ncols: int = 1) -> Tuple[Figure, Tuple[Axes, Axes, ...]]:
         size: int = math.floor(n * 0.75)
-        return plt.subplots(narrows, n_cols, figsize=(size * n_cols, size * narrows))
+        fig, list_axes =  plt.subplots(narrows, ncols, figsize=(size * ncols, size * narrows))
+        for ax in list_axes.flatten():
+            ax.set_aspect("equal")
+            ax.axis("off")
+        return fig, list_axes
 
     @classmethod
     def __cell_bottom_left(cls, n: int, i: int, j: int, margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
