@@ -13,4 +13,4 @@ api-tests:
 	cd packages/api && uv run pytest
 
 webui:
-	cd packages/webui && uv run streamlit src/webui/main.py
+	cd packages/webui && uv run streamlit run src/webui/main.py
