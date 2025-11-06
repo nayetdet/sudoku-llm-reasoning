@@ -34,7 +34,7 @@ class Sudoku:
     def __init__(self, grid: Sequence[Sequence[int]]) -> None:
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
         self.__solutions: Optional[Tuple["Sudoku", ...]] = None
-        self.__deduction_chains_1st_layer_consensus: List[List[Optional[List[SudokuConsensusDeductionChain]]]] = [[None] * len(grid) for _ in range(len(grid))]
+        self.__deduction_chains_1st_layer_consensus: List[List[Optional[List[List[SudokuConsensusDeductionChain]]]]] = [[None] * len(grid) for _ in range(len(grid))]
 
     def __len__(self) -> int:
         return len(self.grid)
@@ -161,7 +161,7 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
-    def deduction_chain_1st_layer_consensus(self, i: int, j: int) -> Optional[SudokuConsensusDeductionChain]:
+    def deduction_chain_1st_layer_consensus(self, i: int, j: int) -> Optional[List[List[SudokuConsensusDeductionChain]]]:
         if self.__deduction_chains_1st_layer_consensus[i][j] is None:
             self.candidate_values_1st_layer_consensus_at_position(i, j)
         return self.__deduction_chains_1st_layer_consensus[i][j]
@@ -245,6 +245,7 @@ class Sudoku:
 
             for candidate, positions in candidate_positions.items():
                 inner_candidates: List[int] = []
+                inner_deduction_chain: List[SudokuConsensusDeductionChain] = []
                 for ii, jj in positions:
                     if (ii, jj) == (i, j):
                         continue
@@ -273,7 +274,7 @@ class Sudoku:
                     next_candidates: Set[int] = next_sudoku.candidate_values_0th_layer_at_position(i, j)
                     if len(next_candidates) == 1:
                         inner_candidates.append(next(iter(next_candidates)))
-                        self.__deduction_chains_1st_layer_consensus[i][j].append(
+                        inner_deduction_chain.append(
                             SudokuConsensusDeductionChain(
                                 initial_assumption_value=candidate,
                                 initial_assumption_position=(ii, jj),
@@ -286,6 +287,7 @@ class Sudoku:
 
                 if len(inner_candidates) == len(positions) and len(set(inner_candidates)) == 1:
                     candidates.add(next(iter(inner_candidates)))
+                    self.__deduction_chains_1st_layer_consensus[i][j].append(inner_deduction_chain)
         return candidates if len(candidates) == 1 else set()
 
     @cachemethod
