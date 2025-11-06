@@ -7,7 +7,6 @@ from typing import List, Tuple, Optional
 from api.config import Config
 from api.enums.sudoku_candidate_type import SudokuCandidateType
 from api.logger import logger
-from api.mappers.sudoku_mapper import SudokuMapper
 from api.repositories.sudoku_repository import SudokuRepository
 from core.sudoku import Sudoku, SudokuCandidate
 
@@ -27,6 +26,8 @@ class SudokuFactory:
         return random.choice(self.__sudoku_solutions)
 
     def get_sudokus_by_candidate_type(self, candidate_type: SudokuCandidateType, target_count: int, max_attempts: int) -> List[Sudoku]:
+        from api.mappers.sudoku_mapper import SudokuMapper
+
         sudokus: List[Sudoku] = []
         with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             futures: List[Future[Optional[Sudoku]]] = [
