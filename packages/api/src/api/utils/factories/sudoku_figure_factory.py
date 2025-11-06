@@ -11,11 +11,11 @@ from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate
 
 @dataclass(frozen=True)
-class SudokuFigureCellColor:
+class SudokuFigureColor:
     text_color: Optional[str]
     background_color: Optional[str]
 
-class SudokuFigure:
+class SudokuFigureFactory:
     def __init__(self, color: str) -> None:
         self.__color: str = color
 
@@ -41,7 +41,7 @@ class SudokuFigure:
                 ax=ax_start,
                 sudoku=sudoku,
                 color_positions={
-                    SudokuFigureCellColor(text_color=None, background_color=self.__color): list(color_positions)
+                    SudokuFigureColor(text_color=None, background_color=self.__color): list(color_positions)
                 },
                 candidate_positions={
                     SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: [
@@ -81,7 +81,7 @@ class SudokuFigure:
             ax=ax,
             sudoku=sudoku.next_step_at_position(*sudoku_candidate.position, sudoku_candidate.value),
             color_positions={
-                SudokuFigureCellColor(text_color=self.__color, background_color=None): [
+                SudokuFigureColor(text_color=self.__color, background_color=None): [
                     sudoku_candidate.position
                 ]
             },
@@ -94,7 +94,7 @@ class SudokuFigure:
             self,
             ax: Axes,
             sudoku: Sudoku,
-            color_positions: Optional[Dict[SudokuFigureCellColor, List[Tuple[int, int]]]] = None,
+            color_positions: Optional[Dict[SudokuFigureColor, List[Tuple[int, int]]]] = None,
             candidate_positions: Optional[Dict[SudokuCandidateType, List[Tuple[int, int]]]] = None,
             circle_positions: Optional[List[Tuple[int, int]]] = None,
             arrow_positions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int]]]] = None
@@ -204,7 +204,7 @@ class SudokuFigure:
         return j + 0.5 + mx, n - i - 0.5 + my
 
 if __name__ == "__main__":
-    sf = SudokuFigure(color="red")
+    sf = SudokuFigureFactory(color="red")
     sf.get_naked_singles_sudoku_figures(
         Sudoku(
             grid=[
