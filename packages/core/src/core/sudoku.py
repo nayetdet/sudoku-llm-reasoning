@@ -14,6 +14,15 @@ class SudokuCandidate:
     value: int
     position: Tuple[int, int]
 
+@dataclass(frozen=True)
+class SudokuConsensusDeductionChain:
+    initial_assumption_value: int
+    initial_assumption_position: Tuple[int, int]
+    region_positions: List[Tuple[int, int]]
+    consequences: Tuple[Tuple[Tuple[int, int], int], ...]
+    consensus_candidate_value: int
+    consensus_candidate_position: Tuple[int, int]
+
 class Sudoku:
     def __new__(cls, grid: Sequence[Sequence[int]]) -> Self:
         if any(len(row) != len(grid) for row in grid):
@@ -25,6 +34,7 @@ class Sudoku:
     def __init__(self, grid: Sequence[Sequence[int]]) -> None:
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
         self.__solutions: Optional[Tuple["Sudoku", ...]] = None
+        self.__deduction_chains_1st_layer_consensus: List[List[Optional[List[SudokuConsensusDeductionChain]]]] = [[None] * len(grid) for _ in range(len(grid))]
 
     def __len__(self) -> int:
         return len(self.grid)
@@ -151,6 +161,11 @@ class Sudoku:
         grid[i][j] = value
         return Sudoku(grid)
 
+    def deduction_chain_1st_layer_consensus(self, i: int, j: int) -> Optional[SudokuConsensusDeductionChain]:
+        if self.__deduction_chains_1st_layer_consensus[i][j] is None:
+            self.candidate_values_1st_layer_consensus_at_position(i, j)
+        return self.__deduction_chains_1st_layer_consensus[i][j]
+
     @cachemethod
     def candidate_values_0th_layer_plain_at_position(self, i: int, j: int) -> Set[int]:
         if self.grid[i][j] != 0:
@@ -214,6 +229,9 @@ class Sudoku:
 
         n: int = len(self)
         candidates: Set[int] = set()
+        if self.__deduction_chains_1st_layer_consensus[i][j] is None:
+            self.__deduction_chains_1st_layer_consensus[i][j] = []
+        else: self.__deduction_chains_1st_layer_consensus[i][j].clear()
 
         for region in self.grid_rows_with_positions + self.grid_columns_with_positions + self.grid_blocks_with_positions:
             candidate_positions: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
@@ -232,6 +250,8 @@ class Sudoku:
                         continue
 
                     next_sudoku: Sudoku = self.next_step_at_position(ii, jj, candidate)
+                    next_sudoku_consequences: List[Tuple[Tuple[int, int], int]] = []
+
                     while True:
                         single_candidates: List[Tuple[int, int, int]] = [
                             (iii, jjj, next(iter(cell_candidates)))
@@ -248,10 +268,21 @@ class Sudoku:
 
                         for iii, jjj, single_candidate in single_candidates:
                             next_sudoku = next_sudoku.next_step_at_position(iii, jjj, single_candidate)
+                            next_sudoku_consequences.append(((iii, jjj), single_candidate))
 
                     next_candidates: Set[int] = next_sudoku.candidate_values_0th_layer_at_position(i, j)
                     if len(next_candidates) == 1:
                         inner_candidates.append(next(iter(next_candidates)))
+                        self.__deduction_chains_1st_layer_consensus[i][j].append(
+                            SudokuConsensusDeductionChain(
+                                initial_assumption_value=candidate,
+                                initial_assumption_position=(ii, jj),
+                                region_positions=[positions for _, positions in region],
+                                consequences=tuple(next_sudoku_consequences),
+                                consensus_candidate_value=next(iter(next_candidates)),
+                                consensus_candidate_position=(i, j)
+                            )
+                        )
 
                 if len(inner_candidates) == len(positions) and len(set(inner_candidates)) == 1:
                     candidates.add(next(iter(inner_candidates)))
