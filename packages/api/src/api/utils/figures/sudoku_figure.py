@@ -22,6 +22,7 @@ class SudokuFigure:
     def get_naked_singles_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
         n, n_isqrt = sudoku.shape()
         figures: List[Figure] = []
+        
         for candidate in sudoku.candidates_0th_layer_naked_singles:
             i, j = candidate.position
             color_positions: Set[Tuple[int, int]] = {
@@ -36,9 +37,10 @@ class SudokuFigure:
                 for b in range(n_isqrt)
             )
 
-            fig, (ax_start, ax_end) = self.__subplots(n, narrows=2)
+            fig, axes = self.__subplots(n, narrows=2)
+
             self.__plot_sudoku_on_axis(
-                ax=ax_start,
+                ax=axes[0],
                 sudoku=sudoku,
                 color_positions={
                     SudokuFigureCellColor(text_color=None, background_color=self.__color): list(color_positions)
@@ -50,7 +52,7 @@ class SudokuFigure:
                 }
             )
 
-            self.__plot_next_sudoku_on_axis(ax_end, sudoku=sudoku, sudoku_candidate=candidate)
+            self.__plot_next_sudoku_on_axis(axes[-1], sudoku=sudoku, sudoku_candidate=candidate)
             figures.append(fig)
         return figures
 
@@ -74,8 +76,31 @@ class SudokuFigure:
         return figures
 
     def get_consensus_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
-        raise NotImplementedError()
-
+        n: int = len(sudoku)
+        figures: List[Figure] = []
+        hip = 3
+        for candidate in sudoku.candidates_1st_layer_consensus:
+            fig, axes = self.__subplots(n, narrows=2, n_cols=3)
+            self.__plot_sudoku_on_axis(
+                axes[1],
+                sudoku=sudoku,
+                candidate_positions={
+                    SudokuCandidateType.FIRST_LAYER_CONSENSUS: [
+                        candidate.position
+                    ]
+                }
+            )
+            for i in range(hip):
+                self.__plot_sudoku_on_axis(
+                    axes[i + 1],
+                    sudoku=sudoku,
+                    arrow_positions=[
+                        (peer_position, candidate.position)
+                        for peer_position in sudoku.peer_positions_of_position_in_1st_layer(candidate.position, i)
+                    ]
+                )
+            self.__plot_next_sudoku_on_axis(axes[-1], sudoku=sudoku, sudoku_candidate=candidate)
+                
     def __plot_next_sudoku_on_axis(self, ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
         return self.__plot_sudoku_on_axis(
             ax=ax,
@@ -184,9 +209,9 @@ class SudokuFigure:
         ax.add_patch(Rectangle((0, 0), width=n, height=n, fill=False, linewidth=3))
 
     @classmethod
-    def __subplots(cls, n: int, narrows: int) -> Tuple[Figure, Tuple[Axes, Axes, ...]]:
+    def __subplots(cls, n: int, narrows: int, n_cols: int = 1) -> Tuple[Figure, Tuple[Axes, Axes, ...]]:
         size: int = math.floor(n * 0.75)
-        return plt.subplots(narrows, 1, figsize=(size, size * narrows))
+        return plt.subplots(narrows, n_cols, figsize=(size * n_cols, size * narrows))
 
     @classmethod
     def __cell_bottom_left(cls, n: int, i: int, j: int, margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
@@ -205,12 +230,12 @@ class SudokuFigure:
 
 if __name__ == "__main__":
     sf = SudokuFigure(color="red")
-    sf.get_naked_singles_sudoku_figures(
+    sf.get_consensus_sudoku_figures(
         Sudoku(
             grid=[
-                [0, 1, 0, 0],
-                [2, 0, 0, 1],
-                [0, 0, 4, 0],
+                [0, 0, 0, 0],
+                [0, 4, 2, 0],
+                [4, 0, 3, 0],
                 [0, 3, 0, 0]
             ]
         )
