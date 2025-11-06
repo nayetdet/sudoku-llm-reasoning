@@ -1,9 +1,14 @@
-from sqlmodel import create_engine
+from pathlib import Path
+
 from sqlalchemy import event
+from sqlmodel import create_engine
+
 from api.config import Config
 
+DATABASE_FILE: Path = Config.Paths.DATA / "data.db"
+
 engine = create_engine(
-    url=f"sqlite:///{Config.Paths.DATA / "data.db"}",
+    url=f"sqlite:///{DATABASE_FILE}",
     echo=False,
     connect_args={
         "timeout": 30
