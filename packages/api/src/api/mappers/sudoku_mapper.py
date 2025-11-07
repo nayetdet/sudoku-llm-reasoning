@@ -1,5 +1,5 @@
 import base64
-from typing import Iterable
+from typing import Iterable, Any, Dict
 
 from api.deps.serializer_instance import SerializerInstance
 from api.enums.sudoku_candidate_type import SudokuCandidateType
@@ -7,7 +7,9 @@ from api.models.sudoku import Sudoku as SudokuModel
 from api.models.sudoku_image import SudokuImage
 from api.schemas.responses.sudoku_image_response_schema import SudokuImageResponseSchema
 from api.schemas.responses.sudoku_response_schema import SudokuResponseSchema
-from core.sudoku import Sudoku
+from core.schemas.sudoku_schemas import SudokuLLMCandidateSchema
+from core.sudoku import Sudoku, SudokuCandidate
+
 
 class SudokuMapper:
     @classmethod
@@ -26,6 +28,21 @@ class SudokuMapper:
                 for image_bytes in image_payloads
             ]
         )
+
+    @classmethod
+    def to_sudoku_candidate(cls, schema: SudokuLLMCandidateSchema) -> SudokuCandidate:
+        return SudokuCandidate(
+            value=schema.value,
+            position=schema.position
+        )
+
+    @classmethod
+    def to_llm_candidates_schema(cls, data: Dict[str, Any]) -> SudokuLLMCandidateSchema:
+        return SudokuLLMCandidateSchema(
+            position=data.get("position"),
+            value=data.get("value"),
+            explanation=data.get("explanation"),
+            type=data.get("type"))
 
     @classmethod
     def to_sudoku_response_schema(cls, sudoku_model: SudokuModel) -> SudokuResponseSchema:
