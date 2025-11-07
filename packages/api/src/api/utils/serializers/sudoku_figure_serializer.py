@@ -1,9 +1,8 @@
 import io
-from typing import Callable, Dict, List, Optional, Sequence
-
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from typing import Callable, Dict, List, Optional, Sequence
 from api.enums.sudoku_candidate_type import SudokuCandidateType
 from api.utils.factories.sudoku_figure_factory import SudokuFigureFactory
 from core.sudoku import Sudoku
@@ -30,8 +29,8 @@ class SudokuFigureSerializer:
 
         payload: List[bytes] = []
         for figure in figures:
-            buffer = io.BytesIO()
-            figure.savefig(buffer, format="png", bbox_inches="tight")
+            fp = io.BytesIO()
+            figure.savefig(fp, format="png", bbox_inches="tight")
             plt.close(figure)
-            payload.append(buffer.getvalue())
+            payload.append(fp.getvalue())
         return payload
