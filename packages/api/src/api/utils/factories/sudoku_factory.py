@@ -67,7 +67,7 @@ class SudokuFactory:
 
             match candidate_type:
                 case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES:
-                    min_removed_cells: int = math.ceil(sudoku.area() * Config.API.Sudoku.NAKED_SINGLES_MIN_RATIO)
+                    min_removed_cells: int = math.ceil(sudoku.area() * Config.Sudoku.NAKED_SINGLES_MIN_RATIO)
                     if removed_cells < min_removed_cells or sudoku.candidates_0th_layer_hidden_singles:
                         continue
                     candidates = sudoku.candidates_0th_layer_naked_singles
