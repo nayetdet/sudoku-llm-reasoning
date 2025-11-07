@@ -1,16 +1,19 @@
-.PHONY: install api api-migrations api-tests webui
+.PHONY: install api api-migrations api-view api-tests webui
 
 install:
 	uv sync --all-groups --all-packages
 
 api:
-	cd packages/api && uv run uvicorn src.api.main:app --log-config log-config.json --reload
+	uv run --package api uvicorn packages.api.src.api.main:app --log-config packages/api/log-config.json --reload
 
 api-migrations:
-	cd packages/api && uv run alembic upgrade head
+	uv run --package api alembic upgrade head
+
+api-view:
+	uv run --package api packages/api/scripts/sudoku_db_reader.py
 
 api-tests:
-	cd packages/api && uv run pytest
+	uv run --package api pytest
 
 webui:
 	cd packages/webui && uv run streamlit run src/webui/main.py
