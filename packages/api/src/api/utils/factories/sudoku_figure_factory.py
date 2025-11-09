@@ -8,7 +8,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle, FancyArrowPatch, Circle
 from matplotlib.text import Text
 from core.enums.sudoku_candidate_type import SudokuCandidateType
-from core.sudoku import Sudoku, SudokuCandidate
+from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
 
 @dataclass(frozen=True)
 class SudokuFigureColor:
@@ -88,7 +88,79 @@ class SudokuFigureFactory:
         return figures
 
     def get_consensus_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
-        raise NotImplementedError()
+        n, n_isqrt = sudoku.shape()
+        figures: List[Figure] = []
+        for candidate in sudoku.candidates_1st_layer_consensus:
+            i, j = candidate.position
+            deduction_chains: List[List[SudokuConsensusDeductionChain]] = sudoku.deduction_chain_1st_layer_consensus(i, j)
+            for chain in deduction_chains:
+                
+                height: int = 5
+                width_size = len(chain) if len(chain) % 2 == 1 else len(chain) + 1
+                middle_index: int = width_size // 2
+                fig, ax = self.__subplots(width=width_size, height=height)
+                initial_sub_ax = self.__sub_ax(ax, position=(0, middle_index))
+                final_sub_ax = self.__sub_ax(ax, position=(height - 1, middle_index))
+
+                # Plot initial sudoku
+                self.__plot_sudoku_on_sub_ax(
+                    sub_ax=initial_sub_ax,
+                    sudoku=sudoku,
+                    overlay=SudokuFigureOverlay(
+                        color_positions={
+                            SudokuFigureColor(text_color=self.__color, background_color="red"): [
+                                candidate.position
+                            ]
+                        },
+                        candidate_positions={
+                            SudokuCandidateType.FIRST_LAYER_CONSENSUS: [
+                                candidate.position
+                            ]
+                        }
+                    )
+                )
+
+            # Plot middle sudoku
+                current_sudoku: Sudoku = sudoku
+                consequences_arrows: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
+                for step_index, deduction in enumerate(chain):
+                    current_sudoku = current_sudoku.next_step_at_position(
+                        deduction.initial_assumption_position[0],
+                        deduction.initial_assumption_position[1],
+                        deduction.initial_assumption_value
+                    )
+
+                    for consequence in deduction.consequences:
+                        current_sudoku = current_sudoku.next_step_at_position(
+                            consequence[0][0],
+                            consequence[0][1],
+                            consequence[1]
+                        )
+                    consequences_positions = [consequence[0] for consequence in deduction.consequences]
+                    for i in range(0, len(consequences_positions), 2):
+                        if i + 1 < len(consequences_positions):
+                            consequences_arrows.append((consequences_positions[i], consequences_positions[i+1]))
+                    
+                    step_sub_ax = self.__sub_ax(ax, position=(height // 2, step_index))
+                    arrow_initial_position = deduction.initial_assumption_position
+                    arrow_final_position = deduction.consequences[0][0]
+                    consequences_arrows.append((arrow_initial_position, arrow_final_position))
+                    self.__plot_sudoku_on_sub_ax(
+                        sub_ax=step_sub_ax,
+                        sudoku=current_sudoku,
+                        overlay=SudokuFigureOverlay(
+                            color_positions={
+                                SudokuFigureColor(text_color=self.__color, background_color=None): [
+                                    *deduction.region_positions
+                                ]
+                            },
+                            arrow_positions=consequences_arrows
+                        )
+                    )
+                    
+                self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
+                figures.append(fig)
+        return figures
 
     def __plot_final_sudoku_on_sub_ax(self, sub_ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
         return self.__plot_sudoku_on_sub_ax(
@@ -211,6 +283,10 @@ class SudokuFigureFactory:
         return fig, ax
 
     @classmethod
+    def __conect_axs(cls, external_ax: Axes) -> None:
+        raise NotImplementedError()
+  
+    @classmethod
     def __sub_ax(cls, ax: Axes, position: Tuple[int, int]) -> Axes:
         return ax.inset_axes((position[1], position[0], 1, 1), transform=ax.transData)
 
@@ -231,12 +307,12 @@ class SudokuFigureFactory:
 
 if __name__ == "__main__":
     sf = SudokuFigureFactory(color="red")
-    sf.get_hidden_singles_sudoku_figures(
+    sf.get_consensus_sudoku_figures(
         Sudoku(
             grid=[
-                [0, 1, 0, 0],
-                [2, 0, 0, 1],
-                [0, 0, 4, 0],
+                [0, 0, 0, 0],
+                [0, 4, 2, 0],
+                [4, 0, 3, 0],
                 [0, 3, 0, 0]
             ]
         )
