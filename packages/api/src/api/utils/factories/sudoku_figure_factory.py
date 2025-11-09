@@ -84,7 +84,9 @@ class SudokuFigureFactory:
             )
 
             self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
+            self.__conect_axs(ax)
             figures.append(fig)
+
         return figures
 
     def get_consensus_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
@@ -150,16 +152,22 @@ class SudokuFigureFactory:
                         sudoku=current_sudoku,
                         overlay=SudokuFigureOverlay(
                             color_positions={
-                                SudokuFigureColor(text_color=self.__color, background_color=None): [
-                                    *deduction.region_positions
+                                SudokuFigureColor(text_color="orange", background_color=None): [
+                                    *consequences_positions
+                                ],
+                                SudokuFigureColor(text_color=self.__color, background_color="red"): [
+                                    deduction.initial_assumption_position
                                 ]
                             },
-                            arrow_positions=consequences_arrows
-                        )
+                            arrow_positions=consequences_arrows,
+                            circle_positions=[deduction.initial_assumption_position]
+                        ),
                     )
                     
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
+                self.__conect_axs(ax)
                 figures.append(fig)
+                break
         return figures
 
     def __plot_final_sudoku_on_sub_ax(self, sub_ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
@@ -284,11 +292,71 @@ class SudokuFigureFactory:
 
     @classmethod
     def __conect_axs(cls, external_ax: Axes) -> None:
-        raise NotImplementedError()
-  
+        sub_entries = getattr(external_ax, "_sudoku_sub_axes", None)
+        if not sub_entries:
+            return
+
+        x0, x1 = external_ax.get_xlim()
+        y0, y1 = external_ax.get_ylim()
+        width  = int(round(max(x0, x1)))
+        height = int(round(max(y0, y1)))
+
+        mid_col = width // 2
+        mid_row = height // 2
+
+        pos_to_ax = {pos: sa for (sa, pos) in sub_entries}
+        initial_pos = (0, mid_col)
+        final_pos   = (height - 1, mid_col)
+
+        step_positions = sorted(
+            [pos for pos in pos_to_ax.keys()
+            if pos[0] == mid_row and pos not in (initial_pos, final_pos)],
+            key=lambda p: p[1]
+        )
+
+
+        def add_arrow(p0: Tuple[int, int], p1: Tuple[int, int], rad: float = 0.0) -> None:
+            external_ax.add_patch(
+                FancyArrowPatch(
+                    (p0[1] + 0.5, p0[0] + 1),
+                    (p1[1] + 0.5, p1[0]),
+                    arrowstyle="simple",
+                    mutation_scale=15,
+                    linewidth=0.75,
+                    color="black",
+                    connectionstyle=f"arc3,rad={rad}"
+                )
+            )
+
+        has_initial = initial_pos in pos_to_ax
+        has_final   = final_pos in pos_to_ax
+
+        # not consensus
+        if not step_positions:
+            if has_initial and has_final:
+                add_arrow(initial_pos, final_pos, rad=0.0)
+            return
+
+        # consensus
+        for step in step_positions:
+            dist = step[1] - mid_col
+            base = 0.15  
+            rad_out = base * (1 if dist >= 0 else -1) * (abs(dist) / max(1, mid_col))
+            rad_in  = -rad_out * 0.9
+
+            if has_initial:
+                add_arrow(initial_pos, step, rad=rad_out)
+            if has_final:
+                add_arrow(step, final_pos, rad=rad_in)
+
     @classmethod
     def __sub_ax(cls, ax: Axes, position: Tuple[int, int]) -> Axes:
-        return ax.inset_axes((position[1], position[0], 1, 1), transform=ax.transData)
+        sub_ax = ax.inset_axes((position[1], position[0], 1, 1), transform=ax.transData)
+        setattr(sub_ax, "_sudoku_pos", position)
+        if not hasattr(ax, "_sudoku_sub_axes"):
+            ax._sudoku_sub_axes = []  # type: ignore[attr-defined]
+        ax._sudoku_sub_axes.append((sub_ax, position))  # type: ignore[attr-defined]
+        return sub_ax
 
     @classmethod
     def __cell_bottom_left(cls, n: int, position: Tuple[int, int], margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
