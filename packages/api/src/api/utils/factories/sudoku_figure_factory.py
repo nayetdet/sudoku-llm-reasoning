@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Tuple, Dict, Set
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle, Circle
+from matplotlib.patches import Rectangle, Circle, FancyArrowPatch
 from matplotlib.text import Text
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
@@ -43,7 +43,6 @@ class SudokuFigureFactory:
             for deduction_chain in deduction_chains:
                 width: int = math.isqrt(len(deduction_chain)) | 1
                 height: int = width + 2
-
                 fig, ax = self.__subplots(n, width=width, height=height)
                 initial_sub_ax: Axes = self.__sub_ax(ax, position=(0, width // 2))
                 self.__plot_sudoku_on_sub_ax(
@@ -58,7 +57,7 @@ class SudokuFigureFactory:
                         }
                     )
                 )
-
+                middle_axes_positions: List[Tuple[int, int]] = []
                 current_sudoku: Sudoku = sudoku
                 for step_idx, deduction in enumerate(deduction_chain):
                     current_sudoku = current_sudoku.next_step_at_position(
@@ -75,6 +74,7 @@ class SudokuFigureFactory:
                         )
 
                     middle_sub_ax: Axes = self.__sub_ax(ax, position=(1, step_idx - 1))
+                    middle_axes_positions.append((1, step_idx - 1))
                     middle_consequence_positions: List[Tuple[int, int]] = [consequence[0] for consequence in deduction.consequences]
                     self.__plot_sudoku_on_sub_ax(
                         sub_ax=middle_sub_ax,
@@ -100,7 +100,20 @@ class SudokuFigureFactory:
 
                 final_sub_ax: Axes = self.__sub_ax(ax, position=(height - 1, width // 2))
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
+                self.__connect_sub_ax(
+                    ax,
+                    initial_sub_ax,
+                    final_sub_ax,
+                    middle_positions=middle_axes_positions
+                )
                 figures.append(fig)
+                self.__connect_sub_ax(
+                    ax,
+                    initial_sub_ax,
+                    final_sub_ax,
+                    middle_positions=middle_axes_positions
+                )
+                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -125,6 +138,8 @@ class SudokuFigureFactory:
             )
 
             self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, candidate=candidate)
+            self.__connect_sub_ax(ax, initial_sub_ax, final_sub_ax)
+            self.__connect_sub_ax(ax, initial_sub_ax, final_sub_ax)
             figures.append(fig)
         return figures
 
@@ -254,8 +269,41 @@ class SudokuFigureFactory:
         return ax.inset_axes((x0, y0, size, size), transform=ax.transData)
 
     @classmethod
-    def __connect_sub_ax(cls, initial_sub_ax: Axes, final_sub_ax: Axes, middle_sub_axes: Optional[List[Axes]] = None) -> None:
-        raise NotImplementedError()
+    def __connect_sub_ax(cls, ax: Axes, initial_sub_ax: Axes, final_sub_ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
+        def add_arrow(p0: Tuple[int, int], p1: Tuple[int, int], rad: float = 0.0) -> None:
+            ax.add_patch(
+                FancyArrowPatch(
+                    (p0[1] + 0.5, p0[0] + 1 - 0.16), 
+                    (p1[1] + 0.5, p1[0] + 0.16),  
+                    arrowstyle="simple",
+                    mutation_scale=18,
+                    linewidth=1.0,
+                    color="black",
+                    connectionstyle=f"arc3,rad={rad}",
+                    zorder=10,        
+                    clip_on=False     
+                )
+            )
+
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        width  = int(round(max(x0, x1)))
+        height = int(round(max(y0, y1)))
+        mid_col = width // 2
+        mid_row = height // 2
+
+        initial_pos = (0, mid_col)
+        final_pos   = (height - 1, mid_col)
+
+        if not middle_positions:
+            if initial_sub_ax and final_sub_ax:
+                add_arrow(initial_pos, final_pos, rad=0.0)
+            return
+
+        if middle_positions:
+            for step in middle_positions:
+                add_arrow(initial_pos, step)
+                add_arrow(step, final_pos)
 
     @classmethod
     def __cell_bottom_left(cls, n: int, position: Tuple[int, int], margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
@@ -279,7 +327,7 @@ class SudokuFigureFactory:
 
 if __name__ == "__main__":
     sf = SudokuFigureFactory(primary_color="red", secondary_color="blue")
-    sf.get_consensus_sudoku_figures(
+    sf.get_naked_singles_sudoku_figures(
         Sudoku(
             grid=[
                 [0, 0, 0, 0],
