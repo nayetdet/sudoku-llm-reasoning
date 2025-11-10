@@ -18,6 +18,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from api.models.sudoku import Sudoku # noqa: F401
+from api.models.sudoku_image import SudokuImage # noqa: F401
 
 target_metadata = SQLModel.metadata
 
