@@ -16,5 +16,5 @@ class FactoryInstance:
     @classmethod
     def get_sudoku_figure_factory(cls) -> SudokuFigureFactory:
         if cls.__sudoku_figure_factory is None:
-            cls.__sudoku_figure_factory = SudokuFigureFactory(color="red")
+            cls.__sudoku_figure_factory = SudokuFigureFactory(primary_color="red")
         return cls.__sudoku_figure_factory
