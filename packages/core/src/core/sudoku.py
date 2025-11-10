@@ -129,11 +129,6 @@ class Sudoku:
             self.__solutions = self.solve()
         return self.__solutions
 
-    def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
-        _, n_isqrt = self.shape()
-        ii: int = (i // n_isqrt) * n_isqrt + (j // n_isqrt)
-        return self.grid_blocks[ii]
-
     def area(self) -> int:
         return len(self) ** 2
 
@@ -156,12 +151,17 @@ class Sudoku:
     def is_solved(self) -> bool:
         return self.is_full() and self.is_solvable()
 
+    def grid_block_at_position(self, i: int, j: int) -> Tuple[int, ...]:
+        _, n_isqrt = self.shape()
+        ii: int = (i // n_isqrt) * n_isqrt + (j // n_isqrt)
+        return self.grid_blocks[ii]
+
     def next_step_at_position(self, i: int, j: int, value: int) -> "Sudoku":
         grid: List[List[int]] = [list(row) for row in self.grid]
         grid[i][j] = value
         return Sudoku(grid)
 
-    def deduction_chain_1st_layer_consensus(self, i: int, j: int) -> Optional[List[List[SudokuConsensusDeductionChain]]]:
+    def deduction_chain_1st_layer_consensus_at_position(self, i: int, j: int) -> Optional[List[List[SudokuConsensusDeductionChain]]]:
         if self.__deduction_chains_1st_layer_consensus[i][j] is None:
             self.candidate_values_1st_layer_consensus_at_position(i, j)
         return self.__deduction_chains_1st_layer_consensus[i][j]
@@ -246,12 +246,13 @@ class Sudoku:
             for candidate, positions in candidate_positions.items():
                 inner_candidates: List[int] = []
                 inner_deduction_chain: List[SudokuConsensusDeductionChain] = []
+
                 for ii, jj in positions:
                     if (ii, jj) == (i, j):
                         continue
 
                     next_sudoku: Sudoku = self.next_step_at_position(ii, jj, candidate)
-                    next_sudoku_consequences: List[Tuple[Tuple[int, int], int]] = []
+                    next_sudoku_consequences: List[Tuple[Tuple[int, int], int]] = [((ii, jj), candidate)]
 
                     while True:
                         single_candidates: List[Tuple[int, int, int]] = [
@@ -273,15 +274,16 @@ class Sudoku:
 
                     next_candidates: Set[int] = next_sudoku.candidate_values_0th_layer_at_position(i, j)
                     if len(next_candidates) == 1:
-                        inner_candidates.append(next(iter(next_candidates)))
+                        consensus_candidate_value, consensus_candidate_position = next(iter(next_candidates)), (i, j)
+                        inner_candidates.append(consensus_candidate_value)
                         inner_deduction_chain.append(
                             SudokuConsensusDeductionChain(
                                 initial_assumption_value=candidate,
                                 initial_assumption_position=(ii, jj),
                                 region_positions=[position for _, position in region],
-                                consequences=tuple(next_sudoku_consequences),
-                                consensus_candidate_value=next(iter(next_candidates)),
-                                consensus_candidate_position=(i, j)
+                                consequences=tuple(next_sudoku_consequences + [(consensus_candidate_position, consensus_candidate_value)]),
+                                consensus_candidate_value=consensus_candidate_value,
+                                consensus_candidate_position=consensus_candidate_position
                             )
                         )
 
@@ -302,6 +304,17 @@ class Sudoku:
             if next_sudoku.is_solvable():
                 candidates.add(candidate)
         return candidates
+
+    def candidate_values_at_position(self, i: int, j: int, candidate_type: SudokuCandidateType) -> Optional[Set[int]]:
+        values: Optional[Set[int]] = None
+        match candidate_type:
+            case SudokuCandidateType.ZEROTH_LAYER_PLAIN: values = self.candidate_values_0th_layer_plain_at_position(i, j)
+            case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: values = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
+            case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: values = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
+            case SudokuCandidateType.ZEROTH_LAYER: values = self.candidate_values_0th_layer_at_position(i, j)
+            case SudokuCandidateType.FIRST_LAYER_CONSENSUS: values = self.candidate_values_1st_layer_consensus_at_position(i, j)
+            case SudokuCandidateType.NTH_LAYER: values = self.candidate_values_nth_layer_at_position(i, j)
+        return values
 
     def solve(self, max_solutions: Optional[int] = None) -> Tuple["Sudoku", ...]:
         # Variables: Integer variable for each cell of the Sudoku grid
@@ -393,15 +406,6 @@ class Sudoku:
         n: int = len(self)
         candidates: List[SudokuCandidate] = []
         for i, j in itertools.product(range(n), range(n)):
-            values: Set[int] = set()
-            match candidate_type:
-                case SudokuCandidateType.ZEROTH_LAYER_PLAIN: values = self.candidate_values_0th_layer_plain_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: values = self.candidate_values_0th_layer_naked_singles_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: values = self.candidate_values_0th_layer_hidden_singles_at_position(i, j)
-                case SudokuCandidateType.ZEROTH_LAYER: values = self.candidate_values_0th_layer_at_position(i, j)
-                case SudokuCandidateType.FIRST_LAYER_CONSENSUS: values = self.candidate_values_1st_layer_consensus_at_position(i, j)
-                case SudokuCandidateType.NTH_LAYER: values = self.candidate_values_nth_layer_at_position(i, j)
-
-            for value in values:
+            for value in self.candidate_values_at_position(i, j, candidate_type=candidate_type):
                 candidates.append(SudokuCandidate(position=(i, j), value=value))
         return tuple(candidates)
