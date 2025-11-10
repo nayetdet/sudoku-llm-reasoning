@@ -57,7 +57,7 @@ class SudokuFigureFactory:
                         }
                     )
                 )
-                middle_axes_positions: List[Tuple[int, int]] = []
+                middle_sub_axes: List[Axes] = []
                 current_sudoku: Sudoku = sudoku
                 for step_idx, deduction in enumerate(deduction_chain):
                     current_sudoku = current_sudoku.next_step_at_position(
@@ -74,7 +74,7 @@ class SudokuFigureFactory:
                         )
 
                     middle_sub_ax: Axes = self.__sub_ax(ax, position=(1, step_idx - 1))
-                    middle_axes_positions.append((1, step_idx - 1))
+                    middle_sub_axes.append(middle_sub_ax)
                     middle_consequence_positions: List[Tuple[int, int]] = [consequence[0] for consequence in deduction.consequences]
                     self.__plot_sudoku_on_sub_ax(
                         sub_ax=middle_sub_ax,
@@ -104,15 +104,17 @@ class SudokuFigureFactory:
                     ax,
                     initial_sub_ax,
                     final_sub_ax,
-                    middle_positions=middle_axes_positions
+                    middle_sub_axes=middle_sub_axes
                 )
+
                 figures.append(fig)
                 self.__connect_sub_ax(
                     ax,
                     initial_sub_ax,
                     final_sub_ax,
-                    middle_positions=middle_axes_positions
+                    middle_sub_axes=middle_sub_axes
                 )
+
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -265,44 +267,60 @@ class SudokuFigureFactory:
         size: float = 1 - margin
         row, column = position
         x0, y0 = column + margin / 2, row + margin / 2
-        return ax.inset_axes((x0, y0, size, size), transform=ax.transData)
+        sub_ax: Axes = ax.inset_axes((x0, y0, size, size), transform=ax.transData)
+        setattr(sub_ax, "_sudoku_grid_info", {"row": row, "column": column, "margin": margin})
+        return sub_ax
 
     @classmethod
-    def __connect_sub_ax(cls, ax: Axes, initial_sub_ax: Axes, final_sub_ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
-        def add_arrow(p0: Tuple[int, int], p1: Tuple[int, int], rad: float = 0.0) -> None:
+    def __connect_sub_ax(cls, ax: Axes, initial_sub_ax: Axes, final_sub_ax: Axes, middle_sub_axes: Optional[List[Axes]] = None) -> None:
+        def axis_info(sub_ax: Axes) -> Optional[Dict[str, float]]:
+            return getattr(sub_ax, "_sudoku_grid_info", None)
+
+        def anchor(sub_ax: Axes, *, top: bool) -> Optional[Tuple[float, float]]:
+            info = axis_info(sub_ax)
+            if not info:
+                return None
+
+            row, column, margin = info["row"], info["column"], info["margin"]
+            size = 1 - margin
+            y = row + margin / 2 + (0 if top else size)
+            y += -0.025 if top else 0.025
+            return (column + 0.5, y)
+
+        def draw_arrow(source_ax: Axes, target_ax: Axes, rad: float = 0.0) -> None:
+            start = anchor(source_ax, top=False)
+            end = anchor(target_ax, top=True)
+            if not (start and end):
+                return
+
             ax.add_patch(
                 FancyArrowPatch(
-                    (p0[1] + 0.5, p0[0] + 1 - 0.10), 
-                    (p1[1] + 0.5, p1[0] + 0.10),  
+                    start,
+                    end,
                     arrowstyle="simple",
                     mutation_scale=18,
                     linewidth=1.0,
                     color="black",
                     connectionstyle=f"arc3,rad={rad}",
-                    zorder=10,        
-                    clip_on=False     
+                    zorder=10,
+                    clip_on=False
                 )
             )
 
-        x0, x1 = ax.get_xlim()
-        y0, y1 = ax.get_ylim()
-        width  = int(round(max(x0, x1)))
-        height = int(round(max(y0, y1)))
-        mid_col = width // 2
-        mid_row = height // 2
+        def curvature(count: int) -> List[float]:
+            if count <= 1:
+                return [0.0]
+            midpoint = (count - 1) / 2
+            return [(idx - midpoint) * 0.15 for idx in range(count)]
 
-        initial_pos = (0, mid_col)
-        final_pos   = (height - 1, mid_col)
-
-        if not middle_positions:
-            if initial_sub_ax and final_sub_ax:
-                add_arrow(initial_pos, final_pos, rad=0.0)
+        connectors = middle_sub_axes or []
+        if not connectors:
+            draw_arrow(initial_sub_ax, final_sub_ax)
             return
 
-        if middle_positions:
-            for step in middle_positions:
-                add_arrow(initial_pos, step)
-                add_arrow(step, final_pos)
+        for rad, connector in zip(curvature(len(connectors)), connectors):
+            draw_arrow(initial_sub_ax, connector, rad=rad)
+            draw_arrow(connector, final_sub_ax, rad=rad)
 
     @classmethod
     def __cell_bottom_left(cls, n: int, position: Tuple[int, int], margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
