@@ -113,7 +113,6 @@ class SudokuFigureFactory:
                     final_sub_ax,
                     middle_positions=middle_axes_positions
                 )
-                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -273,8 +272,8 @@ class SudokuFigureFactory:
         def add_arrow(p0: Tuple[int, int], p1: Tuple[int, int], rad: float = 0.0) -> None:
             ax.add_patch(
                 FancyArrowPatch(
-                    (p0[1] + 0.5, p0[0] + 1 - 0.16), 
-                    (p1[1] + 0.5, p1[0] + 0.16),  
+                    (p0[1] + 0.5, p0[0] + 1 - 0.10), 
+                    (p1[1] + 0.5, p1[0] + 0.10),  
                     arrowstyle="simple",
                     mutation_scale=18,
                     linewidth=1.0,
@@ -327,7 +326,7 @@ class SudokuFigureFactory:
 
 if __name__ == "__main__":
     sf = SudokuFigureFactory(primary_color="red", secondary_color="blue")
-    sf.get_naked_singles_sudoku_figures(
+    sf.get_consensus_sudoku_figures(
         Sudoku(
             grid=[
                 [0, 0, 0, 0],
