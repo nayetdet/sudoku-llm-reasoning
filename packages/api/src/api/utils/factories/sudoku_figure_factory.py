@@ -1,12 +1,13 @@
 import itertools
 import math
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, List, Tuple, Dict, Set
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle, FancyArrowPatch, Circle
+from matplotlib.patches import Rectangle, Circle
 from matplotlib.text import Text
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
@@ -118,12 +119,12 @@ class SudokuFigureFactory:
                         sudoku=current_sudoku,
                         overlay=SudokuFigureOverlay(
                             text_color_cells=[
-                                SudokuFigureCellOverlay(element=x, color=self.__secondary_color)
+                                SudokuFigureCellOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color)
                                 for x in middle_consequence_positions
                             ],
                             circle_cells=[
-                                SudokuFigureCellOverlay(element=deduction.initial_assumption_position, color=self.__secondary_color),
-                                SudokuFigureCellOverlay(element=candidate.position, color=self.__secondary_color)
+                                SudokuFigureCellOverlay(element=candidate.position, color=self.__primary_color),
+                                SudokuFigureCellOverlay(element=deduction.initial_assumption_position, color=self.__secondary_color)
                             ],
                             arrow_cells=[
                                 SudokuFigureCellOverlay(element=x, color=self.__primary_color)
@@ -217,32 +218,32 @@ class SudokuFigureFactory:
         if overlay.arrow_cells:
             color: str = overlay.arrow_cells[0].color or self.__primary_color
             positions: List[Tuple[float, float]] = [
-                self.__cell_bottom_right(n, position=position, margins=(-0.18, +0.18))
+                self.__cell_bottom_right(n, position=position, margins=(-0.25, +0.16))
                 for position in [overlay.arrow_cells[0].element[0], *[cell.element[1] for cell in overlay.arrow_cells]]
             ]
 
-            sub_ax.plot(*zip(*positions), color=color, linewidth=1.5, alpha=0.45, linestyle="-", zorder=1)
+            sub_ax.plot( *zip(*positions), linewidth=1.5, alpha=0.5, linestyle="-", zorder=1, color=color)
             for idx, position in enumerate(positions):
-                sub_ax.text(*position, s=str(idx) if idx not in (0, len(positions) - 1) else "@", ha="center", va="center", weight="bold", fontsize=8, color=color, zorder=1)
-
-            sub_ax.add_patch(
-                FancyArrowPatch(
-                    posA=positions[-2],
-                    posB=positions[-1],
-                    arrowstyle="->",
-                    linewidth=1.5,
-                    color=color,
-                    alpha=0.45,
-                    mutation_scale=15,
-                    zorder=1
+                sub_ax.text(
+                    *position,
+                    s=f"{idx:02d}",
+                    ha="center",
+                    va="center",
+                    weight="bold",
+                    fontsize=8,
+                    path_effects=[
+                        pe.Stroke(linewidth=3, foreground="white"),
+                        pe.Normal()
+                    ],
+                    zorder=2,
+                    color=color
                 )
-            )
 
         # Borders
         for i in range(0, n + 1, n_isqrt):
             sub_ax.plot((0, n), (i, i), linewidth=1.5, color="black")
             sub_ax.plot((i, i), (0, n), linewidth=1.5, color="black")
-        sub_ax.add_patch(Rectangle((0, 0), n, n, fill=False, linewidth=3))
+        sub_ax.add_patch(Rectangle((0, 0), n, n, fill=False, linewidth=3, zorder=3))
 
     @classmethod
     def __subplots(cls, n: int, width: int, height: int) -> Tuple[Figure, Axes]:
