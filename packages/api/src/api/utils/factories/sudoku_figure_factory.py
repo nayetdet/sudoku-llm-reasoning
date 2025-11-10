@@ -13,16 +13,16 @@ from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
 
 @dataclass(frozen=True)
-class SudokuFigureCellOverlay[T]:
+class SudokuFigureElementOverlay[T]:
     element: T
     color: Optional[str] = None
 
 @dataclass(frozen=True)
 class SudokuFigureOverlay:
-    text_color_cells: List[SudokuFigureCellOverlay[Tuple[int, int]]] = field(default_factory=list)
-    candidate_cells: Dict[SudokuCandidateType, List[SudokuFigureCellOverlay[Tuple[int, int]]]] = field(default_factory=dict)
-    circle_cells: List[SudokuFigureCellOverlay[Tuple[int, int]]] = field(default_factory=list)
-    arrow_cells: List[SudokuFigureCellOverlay[Tuple[Tuple[int, int], Tuple[int, int]]]] = field(default_factory=list)
+    text_color_cells: List[SudokuFigureElementOverlay[Tuple[int, int]]] = field(default_factory=list)
+    candidate_cells: Dict[SudokuCandidateType, List[SudokuFigureElementOverlay[Tuple[int, int]]]] = field(default_factory=dict)
+    circle_cells: List[SudokuFigureElementOverlay[Tuple[int, int]]] = field(default_factory=list)
+    arrow_cells: List[SudokuFigureElementOverlay[Tuple[Tuple[int, int], Tuple[int, int]]]] = field(default_factory=list)
 
 class SudokuFigureFactory:
     def __init__(self, primary_color: str, secondary_color: str) -> None:
@@ -41,7 +41,7 @@ class SudokuFigureFactory:
                 overlay=SudokuFigureOverlay(
                     candidate_cells={
                         SudokuCandidateType.ZEROTH_LAYER_PLAIN: [
-                            SudokuFigureCellOverlay(element=candidate.position, color=self.__primary_color)
+                            SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color)
                         ]
                     }
                 )
@@ -63,7 +63,7 @@ class SudokuFigureFactory:
                 overlay=SudokuFigureOverlay(
                     candidate_cells={
                         SudokuCandidateType.ZEROTH_LAYER_PLAIN: [
-                            SudokuFigureCellOverlay(element=candidate.position, color=self.__primary_color)
+                            SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color)
                         ]
                     }
                 )
@@ -90,7 +90,7 @@ class SudokuFigureFactory:
                     overlay=SudokuFigureOverlay(
                         candidate_cells={
                             SudokuCandidateType.ZEROTH_LAYER: [
-                                SudokuFigureCellOverlay(element=element, color=self.__primary_color if element == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(element=element, color=self.__primary_color if element == candidate.position else self.__secondary_color)
                                 for element in {position for x in deduction_chain for position in x.region_positions} | {candidate.position}
                             ]
                         }
@@ -119,15 +119,15 @@ class SudokuFigureFactory:
                         sudoku=current_sudoku,
                         overlay=SudokuFigureOverlay(
                             text_color_cells=[
-                                SudokuFigureCellOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color)
                                 for x in middle_consequence_positions
                             ],
                             circle_cells=[
-                                SudokuFigureCellOverlay(element=candidate.position, color=self.__primary_color),
-                                SudokuFigureCellOverlay(element=deduction.initial_assumption_position, color=self.__secondary_color)
+                                SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color),
+                                SudokuFigureElementOverlay(element=deduction.initial_assumption_position, color=self.__secondary_color)
                             ],
                             arrow_cells=[
-                                SudokuFigureCellOverlay(element=x, color=self.__primary_color)
+                                SudokuFigureElementOverlay(element=x, color=self.__primary_color)
                                 for x in [
                                     (middle_consequence_positions[i], middle_consequence_positions[i + 1])
                                     for i in range(len(middle_consequence_positions) - 1)
@@ -147,10 +147,10 @@ class SudokuFigureFactory:
             sudoku=sudoku.next_step_at_position(*sudoku_candidate.position, sudoku_candidate.value),
             overlay=SudokuFigureOverlay(
                 text_color_cells=[
-                    SudokuFigureCellOverlay(element=sudoku_candidate.position, color=self.__primary_color)
+                    SudokuFigureElementOverlay(element=sudoku_candidate.position, color=self.__primary_color)
                 ],
                 circle_cells=[
-                    SudokuFigureCellOverlay(element=sudoku_candidate.position, color=self.__primary_color)
+                    SudokuFigureElementOverlay(element=sudoku_candidate.position, color=self.__primary_color)
                 ]
             )
         )
