@@ -30,54 +30,16 @@ class SudokuFigureFactory:
         self.__secondary_color: str = secondary_color
 
     def get_naked_singles_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
-        n: int = len(sudoku)
-        figures: List[Figure] = []
-        for candidate in sudoku.candidates_0th_layer_naked_singles:
-            fig, ax = self.__subplots(n, width=1, height=2)
-            initial_sub_ax, final_sub_ax = self.__sub_ax(ax, position=(0, 0)), self.__sub_ax(ax, position=(1, 0))
-            self.__plot_sudoku_on_sub_ax(
-                sub_ax=initial_sub_ax,
-                sudoku=sudoku,
-                overlay=SudokuFigureOverlay(
-                    candidate_cells={
-                        SudokuCandidateType.ZEROTH_LAYER_PLAIN: [
-                            SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color)
-                        ]
-                    }
-                )
-            )
-
-            self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
-            figures.append(fig)
-        return figures
+        return self.__get_single_candidate_principle_sudoku_figures(sudoku, sudoku.candidates_0th_layer_naked_singles)
 
     def get_hidden_singles_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
-        n: int = len(sudoku)
-        figures: List[Figure] = []
-        for candidate in sudoku.candidates_0th_layer_hidden_singles:
-            fig, ax = self.__subplots(n, width=1, height=2)
-            initial_sub_ax, final_sub_ax = self.__sub_ax(ax, position=(0, 0)), self.__sub_ax(ax, position=(1, 0))
-            self.__plot_sudoku_on_sub_ax(
-                sub_ax=initial_sub_ax,
-                sudoku=sudoku,
-                overlay=SudokuFigureOverlay(
-                    candidate_cells={
-                        SudokuCandidateType.ZEROTH_LAYER_PLAIN: [
-                            SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color)
-                        ]
-                    }
-                )
-            )
-
-            self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
-            figures.append(fig)
-        return figures
+        return self.__get_single_candidate_principle_sudoku_figures(sudoku, sudoku.candidates_0th_layer_hidden_singles)
 
     def get_consensus_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
         n: int = len(sudoku)
         figures: List[Figure] = []
         for candidate in sudoku.candidates_1st_layer_consensus:
-            deduction_chains: List[List[SudokuConsensusDeductionChain]] = sudoku.deduction_chain_1st_layer_consensus(*candidate.position)
+            deduction_chains: List[List[SudokuConsensusDeductionChain]] = sudoku.deduction_chain_1st_layer_consensus_at_position(*candidate.position)
             for deduction_chain in deduction_chains:
                 width: int = math.isqrt(len(deduction_chain)) | 1
                 height: int = width + 2
@@ -113,7 +75,7 @@ class SudokuFigureFactory:
                         )
 
                     middle_sub_ax: Axes = self.__sub_ax(ax, position=(1, step_idx - 1))
-                    middle_consequence_positions: List[Tuple[int, int]] = [deduction.initial_assumption_position] + [consequence[0] for consequence in deduction.consequences] + [candidate.position]
+                    middle_consequence_positions: List[Tuple[int, int]] = [consequence[0] for consequence in deduction.consequences]
                     self.__plot_sudoku_on_sub_ax(
                         sub_ax=middle_sub_ax,
                         sudoku=current_sudoku,
@@ -137,20 +99,51 @@ class SudokuFigureFactory:
                     )
 
                 final_sub_ax: Axes = self.__sub_ax(ax, position=(height - 1, width // 2))
-                self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, sudoku_candidate=candidate)
+                self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
                 figures.append(fig)
         return figures
 
-    def __plot_final_sudoku_on_sub_ax(self, sub_ax: Axes, sudoku: Sudoku, sudoku_candidate: SudokuCandidate) -> None:
+    def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
+        n: int = len(sudoku)
+        figures: List[Figure] = []
+        for candidate in candidates:
+            fig, ax = self.__subplots(n, width=1, height=2)
+            initial_sub_ax, final_sub_ax = self.__sub_ax(ax, position=(0, 0)), self.__sub_ax(ax, position=(1, 0))
+            self.__plot_sudoku_on_sub_ax(
+                sub_ax=initial_sub_ax,
+                sudoku=sudoku,
+                overlay=SudokuFigureOverlay(
+                    candidate_cells={
+                        SudokuCandidateType.ZEROTH_LAYER_PLAIN: [
+                            SudokuFigureElementOverlay(
+                                element=candidate.position,
+                                color=self.__primary_color
+                            )
+                        ]
+                    }
+                )
+            )
+
+            self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, candidate=candidate)
+            figures.append(fig)
+        return figures
+
+    def __plot_final_sudoku_on_sub_ax(self, sub_ax: Axes, sudoku: Sudoku, candidate: SudokuCandidate) -> None:
         return self.__plot_sudoku_on_sub_ax(
             sub_ax=sub_ax,
-            sudoku=sudoku.next_step_at_position(*sudoku_candidate.position, sudoku_candidate.value),
+            sudoku=sudoku.next_step_at_position(*candidate.position, candidate.value),
             overlay=SudokuFigureOverlay(
                 text_color_cells=[
-                    SudokuFigureElementOverlay(element=sudoku_candidate.position, color=self.__primary_color)
+                    SudokuFigureElementOverlay(
+                        element=candidate.position,
+                        color=self.__primary_color
+                    )
                 ],
                 circle_cells=[
-                    SudokuFigureElementOverlay(element=sudoku_candidate.position, color=self.__primary_color)
+                    SudokuFigureElementOverlay(
+                        element=candidate.position,
+                        color=self.__primary_color
+                    )
                 ]
             )
         )
@@ -186,15 +179,7 @@ class SudokuFigureFactory:
                 if sudoku.grid[i][j] != 0:
                     continue
 
-                candidates: Optional[Set[int]] = None
-                match candidate_type:
-                    case SudokuCandidateType.ZEROTH_LAYER_PLAIN: candidates = sudoku.candidate_values_0th_layer_plain_at_position(i, j)
-                    case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES: candidates = sudoku.candidate_values_0th_layer_naked_singles_at_position(i, j)
-                    case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidate_values_0th_layer_hidden_singles_at_position(i, j)
-                    case SudokuCandidateType.ZEROTH_LAYER: candidates = sudoku.candidate_values_0th_layer_at_position(i, j)
-                    case SudokuCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidate_values_1st_layer_consensus_at_position(i, j)
-                    case SudokuCandidateType.NTH_LAYER: candidates = sudoku.candidate_values_nth_layer_at_position(i, j)
-
+                candidates: Optional[Set[int]] = sudoku.candidate_values_at_position(i, j, candidate_type=candidate_type)
                 if not candidates:
                     continue
 
