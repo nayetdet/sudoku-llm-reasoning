@@ -12,7 +12,6 @@ dependencies = [
     "core",
     "fastapi[standard]>=0.121.0",
     "matplotlib>=3.10.7",
-    "scipy>=1.16.3",
     "sqlmodel>=0.0.27",
 ]
 
