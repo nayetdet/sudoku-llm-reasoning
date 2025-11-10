@@ -278,7 +278,7 @@ class Sudoku:
                             SudokuConsensusDeductionChain(
                                 initial_assumption_value=candidate,
                                 initial_assumption_position=(ii, jj),
-                                region_positions=[positions for _, positions in region],
+                                region_positions=[position for _, position in region],
                                 consequences=tuple(next_sudoku_consequences),
                                 consensus_candidate_value=next(iter(next_candidates)),
                                 consensus_candidate_position=(i, j)
