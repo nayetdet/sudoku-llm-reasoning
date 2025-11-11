@@ -41,8 +41,9 @@ class SudokuFigureFactory:
         for candidate in sudoku.candidates_1st_layer_consensus:
             deduction_chains: List[List[SudokuConsensusDeductionChain]] = sudoku.deduction_chain_1st_layer_consensus_at_position(*candidate.position)
             for deduction_chain in deduction_chains:
-                width: int = math.isqrt(len(deduction_chain)) | 1
+                width: int = max(1, math.ceil(math.sqrt(len(deduction_chain))) | 1)
                 height: int = width + 2
+
                 fig, ax = self.__subplots(n, width=width, height=height)
                 initial_sub_ax: Axes = self.__sub_ax(ax, position=(0, width // 2))
                 self.__plot_sudoku_on_sub_ax(
@@ -74,8 +75,11 @@ class SudokuFigureFactory:
                             consequence[1]
                         )
 
-                    middle_sub_ax: Axes = self.__sub_ax(ax, position=(1, step_idx - 1))
-                    middle_axes_positions.append((1, step_idx - 1))
+                    middle_row, middle_column = divmod(step_idx, max(1, width))
+                    middle_row += 1
+
+                    middle_sub_ax: Axes = self.__sub_ax(ax, position=(middle_row, middle_column))
+                    middle_axes_positions.append((middle_row, middle_column))
                     middle_consequence_positions: List[Tuple[int, int]] = [consequence[0] for consequence in deduction.consequences]
                     self.__plot_sudoku_on_sub_ax(
                         sub_ax=middle_sub_ax,
@@ -238,7 +242,7 @@ class SudokuFigureFactory:
     @classmethod
     def __subplots(cls, n: int, width: int, height: int) -> Tuple[Figure, Axes]:
         size: float = n * 0.75
-        fig, ax = plt.subplots(figsize=(width * size ** 2, height * size))
+        fig, ax = plt.subplots(figsize=(width * size, height * size))
         ax.set_xlim(0, width)
         ax.set_ylim(0, height)
         ax.set_xticks(np.arange(0, width + 1))
@@ -313,5 +317,21 @@ if __name__ == "__main__":
             ]
         )
     )
+
+    # sf.get_consensus_sudoku_figures(
+    #     Sudoku(
+    #         grid=[
+    #             [2, 7, 1, 8, 9, 6, 0, 0, 0],
+    #             [9, 4, 3, 5, 2, 7, 6, 8, 1],
+    #             [8, 5, 6, 3, 1, 4, 7, 9, 2],
+    #             [4, 8, 0, 0, 0, 0, 0, 2, 0],
+    #             [6, 3, 0, 0, 0, 0, 0, 0, 0],
+    #             [5, 1, 0, 0, 0, 0, 0, 0, 0],
+    #             [3, 9, 5, 0, 0, 0, 0, 7, 0],
+    #             [7, 2, 4, 0, 3, 8, 5, 0, 9],
+    #             [1, 6, 8, 0, 0, 0, 2, 4, 3]
+    #         ]
+    #     )
+    # )
 
     plt.show()
