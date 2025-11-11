@@ -105,9 +105,10 @@ class SudokuFigureFactory:
 
                 final_sub_ax: Axes = self.__sub_ax(ax, position=(height - 1, width // 2))
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
-                self.__connect_sub_ax(ax, middle_positions=middle_axes_positions)
-                self.__connect_sub_ax(ax, middle_positions=middle_axes_positions)
+                self.__connect_ax(ax, middle_positions=middle_axes_positions)
+                self.__connect_ax(ax, middle_positions=middle_axes_positions)
                 figures.append(fig)
+                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -132,9 +133,10 @@ class SudokuFigureFactory:
             )
 
             self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, candidate=candidate)
-            self.__connect_sub_ax(ax, middle_positions=None)
-            self.__connect_sub_ax(ax, middle_positions=None)
+            self.__connect_ax(ax, middle_positions=None)
+            self.__connect_ax(ax, middle_positions=None)
             figures.append(fig)
+            break
         return figures
 
     def __plot_final_sudoku_on_sub_ax(self, sub_ax: Axes, sudoku: Sudoku, candidate: SudokuCandidate) -> None:
@@ -263,15 +265,15 @@ class SudokuFigureFactory:
         return ax.inset_axes((x0, y0, size, size), transform=ax.transData)
 
     @classmethod
-    def __connect_sub_ax(cls, ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
-        def add_arrow(pos1: Tuple[int, int], pos2: Tuple[int, int], margin: float = 0.1) -> None:
+    def __connect_ax(cls, ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
+        def add_arrow(pos1: Tuple[int, int], pos2: Tuple[int, int], offset: float = 0.1, epsilon: float = 0.05) -> None:
             ax.add_patch(
                 FancyArrowPatch(
-                    posA=(pos1[1] + 0.5, pos1[0] + 1 - margin),
-                    posB=(pos2[1] + 0.5, pos2[0] + margin),
+                    posA=(pos1[1] + 0.5, pos1[0] + 1 - offset + epsilon),
+                    posB=(pos2[1] + 0.5, pos2[0] + offset - epsilon),
                     arrowstyle="simple",
-                    mutation_scale=18,
-                    linewidth=1.0,
+                    mutation_scale=15,
+                    linewidth=1,
                     color="black",
                     clip_on=False
                 )
