@@ -101,21 +101,9 @@ class SudokuFigureFactory:
 
                 final_sub_ax: Axes = self.__sub_ax(ax, position=(height - 1, width // 2))
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
-                self.__connect_sub_ax(
-                    ax,
-                    initial_sub_ax,
-                    final_sub_ax,
-                    middle_positions=middle_axes_positions
-                )
-
+                self.__connect_sub_ax(ax, middle_positions=middle_axes_positions)
+                self.__connect_sub_ax(ax, middle_positions=middle_axes_positions)
                 figures.append(fig)
-                self.__connect_sub_ax(
-                    ax,
-                    initial_sub_ax,
-                    final_sub_ax,
-                    middle_positions=middle_axes_positions
-                )
-
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -140,8 +128,8 @@ class SudokuFigureFactory:
             )
 
             self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, candidate=candidate)
-            self.__connect_sub_ax(ax, initial_sub_ax, final_sub_ax)
-            self.__connect_sub_ax(ax, initial_sub_ax, final_sub_ax)
+            self.__connect_sub_ax(ax, middle_positions=None)
+            self.__connect_sub_ax(ax, middle_positions=None)
             figures.append(fig)
         return figures
 
@@ -271,7 +259,7 @@ class SudokuFigureFactory:
         return ax.inset_axes((x0, y0, size, size), transform=ax.transData)
 
     @classmethod
-    def __connect_sub_ax(cls, ax: Axes, initial_sub_ax: Axes, final_sub_ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
+    def __connect_sub_ax(cls, ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
         def add_arrow(pos1: Tuple[int, int], pos2: Tuple[int, int], margin: float = 0.1) -> None:
             ax.add_patch(
                 FancyArrowPatch(
@@ -280,7 +268,7 @@ class SudokuFigureFactory:
                     arrowstyle="simple",
                     mutation_scale=18,
                     linewidth=1.0,
-                    color="gray",
+                    color="black",
                     clip_on=False
                 )
             )
