@@ -1,5 +1,4 @@
 import itertools
-import math
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,10 +40,8 @@ class SudokuFigureFactory:
         for candidate in sudoku.candidates_1st_layer_consensus:
             deduction_chains: List[List[SudokuConsensusDeductionChain]] = sudoku.deduction_chain_1st_layer_consensus_at_position(*candidate.position)
             for deduction_chain in deduction_chains:
-                width: int = max(1, math.ceil(math.sqrt(len(deduction_chain))) | 1)
-                height: int = width + 2
-
-                fig, ax = self.__subplots(n, width=width, height=height)
+                width: int = max(1, len(deduction_chain)) | 1
+                fig, ax = self.__subplots(n, width=width, height=3)
                 initial_sub_ax: Axes = self.__sub_ax(ax, position=(0, width // 2))
                 self.__plot_sudoku_on_sub_ax(
                     sub_ax=initial_sub_ax,
@@ -75,11 +72,8 @@ class SudokuFigureFactory:
                             consequence[1]
                         )
 
-                    middle_row, middle_column = divmod(step_idx, max(1, width))
-                    middle_row += 1
-
-                    middle_sub_ax: Axes = self.__sub_ax(ax, position=(middle_row, middle_column))
-                    middle_axes_positions.append((middle_row, middle_column))
+                    middle_sub_ax: Axes = self.__sub_ax(ax, position=(1, step_idx))
+                    middle_axes_positions.append((1, step_idx))
                     middle_consequence_positions: List[Tuple[int, int]] = [consequence[0] for consequence in deduction.consequences]
                     self.__plot_sudoku_on_sub_ax(
                         sub_ax=middle_sub_ax,
@@ -103,12 +97,10 @@ class SudokuFigureFactory:
                         )
                     )
 
-                final_sub_ax: Axes = self.__sub_ax(ax, position=(height - 1, width // 2))
+                final_sub_ax: Axes = self.__sub_ax(ax, position=(2, width // 2))
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
                 self.__connect_ax(ax, middle_positions=middle_axes_positions)
-                self.__connect_ax(ax, middle_positions=middle_axes_positions)
                 figures.append(fig)
-                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -133,7 +125,6 @@ class SudokuFigureFactory:
             )
 
             self.__plot_final_sudoku_on_sub_ax(final_sub_ax, sudoku=sudoku, candidate=candidate)
-            self.__connect_ax(ax, middle_positions=None)
             self.__connect_ax(ax, middle_positions=None)
             figures.append(fig)
             break
