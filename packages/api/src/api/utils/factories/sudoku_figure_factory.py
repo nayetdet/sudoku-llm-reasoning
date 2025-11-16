@@ -49,7 +49,10 @@ class SudokuFigureFactory:
                     overlay=SudokuFigureOverlay(
                         candidate_cells={
                             SudokuCandidateType.ZEROTH_LAYER: [
-                                SudokuFigureElementOverlay(element=element, color=self.__primary_color if element == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(
+                                    element=element,
+                                    color=self.__primary_color if element == candidate.position else self.__secondary_color
+                                )
                                 for element in {position for x in deduction_chain for position in x.region_positions} | {candidate.position}
                             ]
                         }
@@ -65,7 +68,9 @@ class SudokuFigureFactory:
                         deduction.initial_assumption_value
                     )
 
-                    for consequence in list(deduction.consequences) + [(deduction.consensus_candidate_position, deduction.consensus_candidate_value)]:
+                    for consequence in list(deduction.consequences) + [
+                        (deduction.consensus_candidate_position, deduction.consensus_candidate_value)
+                    ]:
                         current_sudoku = current_sudoku.next_step_at_position(
                             consequence[0][0],
                             consequence[0][1],
@@ -80,12 +85,15 @@ class SudokuFigureFactory:
                         sudoku=current_sudoku,
                         overlay=SudokuFigureOverlay(
                             text_color_cells=[
-                                SudokuFigureElementOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(
+                                    element=x,
+                                    color=self.__primary_color if x == candidate.position else self.__secondary_color
+                                )
                                 for x in middle_consequence_positions
                             ],
                             circle_cells=[
                                 SudokuFigureElementOverlay(element=candidate.position, color=self.__primary_color),
-                                SudokuFigureElementOverlay(element=deduction.initial_assumption_position, color=self.__secondary_color)
+                                SudokuFigureElementOverlay(element=deduction.initial_assumption_position, color="orange")
                             ],
                             arrow_cells=[
                                 SudokuFigureElementOverlay(element=x, color=self.__primary_color)
@@ -163,9 +171,23 @@ class SudokuFigureFactory:
         # Base Grid
         text_positions: Dict[Tuple[int, int], Text] = {}
         for i, j in itertools.product(range(n), range(n)):
-            sub_ax.add_patch(Rectangle(self.__cell_bottom_left(n, position=(i, j)), width=1, height=1, fill=False, linewidth=0.75))
+            sub_ax.add_patch(
+                Rectangle(
+                    self.__cell_bottom_left(n, position=(i, j)),
+                    width=1,
+                    height=1,
+                    fill=False,
+                    linewidth=0.75
+                )
+            )
             if sudoku.grid[i][j] != 0:
-                text_positions[(i, j)] = sub_ax.text(*self.__cell_center(n, position=(i, j)), s=str(sudoku.grid[i][j]), ha="center", va="center", fontsize=18)
+                text_positions[(i, j)] = sub_ax.text(
+                    *self.__cell_center(n, position=(i, j)),
+                    s=str(sudoku.grid[i][j]),
+                    ha="center",
+                    va="center",
+                    fontsize=16 
+                )
 
         # Text Colors
         for cell in overlay.text_color_cells:
@@ -185,8 +207,18 @@ class SudokuFigureFactory:
                     continue
 
                 sorted_candidates: List[int] = sorted(candidates)
-                text: str = "\n".join(" ".join(str(x) for x in sorted_candidates[i: i + n_isqrt]) for i in range(0, len(sorted_candidates), n_isqrt))
-                sub_ax.text(*self.__cell_top_left(n, position=(i, j), margins=(+0.05, -0.05)), s=text, ha="left", va="top", fontsize=12, color=cell.color or self.__primary_color)
+                text: str = "\n".join(
+                    " ".join(str(x) for x in sorted_candidates[k: k + n_isqrt])
+                    for k in range(0, len(sorted_candidates), n_isqrt)
+                )
+                sub_ax.text(
+                    *self.__cell_top_left(n, position=(i, j), margins=(+0.05, -0.05)),
+                    s=text,
+                    ha="left",
+                    va="top",
+                    fontsize=10,
+                    color=cell.color or self.__primary_color
+                )
 
         # Circles
         for cell in overlay.circle_cells:
@@ -208,7 +240,14 @@ class SudokuFigureFactory:
                 for position in [overlay.arrow_cells[0].element[0], *[cell.element[1] for cell in overlay.arrow_cells]]
             ]
 
-            sub_ax.plot( *zip(*positions), linewidth=1.5, alpha=0.5, linestyle="-", zorder=1, color=color)
+            sub_ax.plot(
+                *zip(*positions),
+                linewidth=1.5,
+                alpha=0.5,
+                linestyle="-",
+                zorder=1,
+                color=color
+            )
             for idx, position in enumerate(positions):
                 sub_ax.text(
                     *position,
@@ -233,7 +272,7 @@ class SudokuFigureFactory:
 
     @classmethod
     def __subplots(cls, n: int, width: int, height: int) -> Tuple[Figure, Axes]:
-        size: float = n * 0.75
+        size: float = n * 1.0  # before: n * 0.75
         fig, ax = plt.subplots(figsize=(width * size, height * size))
         ax.set_xlim(0, width)
         ax.set_ylim(0, height)
@@ -248,11 +287,14 @@ class SudokuFigureFactory:
         return fig, ax
 
     @classmethod
-    def __sub_ax(cls, ax: Axes, position: Tuple[int, int], margin: float = 0.18) -> Axes:
-        size: float = 1 - margin
+    def __sub_ax(cls, ax: Axes, position: Tuple[int, int], margin_x: float = 0.12, margin_y: float = 0.20) -> Axes:
+        # to clarify each margin paramenter ;-;
+        width: float = 1.0 - margin_x
+        height: float = 1.0 - margin_y
         row, column = position
-        x0, y0 = column + margin / 2, row + margin / 2
-        return ax.inset_axes((x0, y0, size, size), transform=ax.transData)
+        x0: float = column + margin_x / 2.0
+        y0: float = row + margin_y / 2.0
+        return ax.inset_axes((x0, y0, width, height), transform=ax.transData)
 
     @classmethod
     def __connect_ax(cls, ax: Axes, middle_positions: Optional[List[Tuple[int, int]]] = None) -> None:
@@ -275,7 +317,8 @@ class SudokuFigureFactory:
             for step in middle_positions:
                 add_arrow(initial_position, step)
                 add_arrow(step, final_position)
-        else: add_arrow(initial_position, final_position)
+        else:
+            add_arrow(initial_position, final_position)
 
     @classmethod
     def __cell_bottom_left(cls, n: int, position: Tuple[int, int], margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
@@ -297,33 +340,34 @@ class SudokuFigureFactory:
         (i, j), (dx, dy) = position, margins or (0, 0)
         return j + 0.5 + dx, n - i - 0.5 + dy
 
+
 if __name__ == "__main__":
     sf = SudokuFigureFactory(primary_color="red", secondary_color="blue")
-    sf.get_consensus_sudoku_figures(
-        Sudoku(
-            grid=[
-                [0, 0, 0, 0],
-                [0, 4, 2, 0],
-                [4, 0, 3, 0],
-                [0, 3, 0, 0]
-            ]
-        )
-    )
-
     # sf.get_consensus_sudoku_figures(
     #     Sudoku(
     #         grid=[
-    #             [2, 7, 1, 8, 9, 6, 0, 0, 0],
-    #             [9, 4, 3, 5, 2, 7, 6, 8, 1],
-    #             [8, 5, 6, 3, 1, 4, 7, 9, 2],
-    #             [4, 8, 0, 0, 0, 0, 0, 2, 0],
-    #             [6, 3, 0, 0, 0, 0, 0, 0, 0],
-    #             [5, 1, 0, 0, 0, 0, 0, 0, 0],
-    #             [3, 9, 5, 0, 0, 0, 0, 7, 0],
-    #             [7, 2, 4, 0, 3, 8, 5, 0, 9],
-    #             [1, 6, 8, 0, 0, 0, 2, 4, 3]
+    #             [0, 0, 0, 0],
+    #             [0, 4, 2, 0],
+    #             [4, 0, 3, 0],
+    #             [0, 3, 0, 0]
     #         ]
     #     )
     # )
+
+    sf.get_consensus_sudoku_figures(
+        Sudoku(
+            grid=[
+                [2, 7, 1, 8, 9, 6, 0, 0, 0],
+                [9, 4, 3, 5, 2, 7, 6, 8, 1],
+                [8, 5, 6, 3, 1, 4, 7, 9, 2],
+                [4, 8, 0, 0, 0, 0, 0, 2, 0],
+                [6, 3, 0, 0, 0, 0, 0, 0, 0],
+                [5, 1, 0, 0, 0, 0, 0, 0, 0],
+                [3, 9, 5, 0, 0, 0, 0, 7, 0],
+                [7, 2, 4, 0, 3, 8, 5, 0, 9],
+                [1, 6, 8, 0, 0, 0, 2, 4, 3]
+            ]
+        )
+    )
 
     plt.show()
