@@ -1988,11 +1988,19 @@ name = "webui"
 version = "1.0.0"
 source = { editable = "packages/webui" }
 dependencies = [
+    { name = "altair" },
+    { name = "pandas" },
+    { name = "requests" },
     { name = "streamlit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "streamlit", specifier = ">=1.51.0" }]
+requires-dist = [
+    { name = "altair", specifier = ">=5.3.0" },
+    { name = "pandas", specifier = ">=2.2.0" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "streamlit", specifier = ">=1.51.0" },
+]
 
 [[package]]
 name = "z3-solver"
