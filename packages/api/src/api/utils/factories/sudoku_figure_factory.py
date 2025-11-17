@@ -1,5 +1,6 @@
 import itertools
 import math
+import matplotlib
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,22 +13,31 @@ from matplotlib.text import Text
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
 
+# matplotlib.use("Agg")
+
 @dataclass(frozen=True)
 class SudokuFigureElementOverlay[T]:
     element: T
     color: Optional[str] = None
 
 @dataclass(frozen=True)
+class SudokuFigureCircleCandidateElementOverlay:
+    value: int
+    excluded_positions: Optional[List[Tuple[int, int]]]
+
+@dataclass(frozen=True)
 class SudokuFigureOverlay:
     text_color_cells: List[SudokuFigureElementOverlay[Tuple[int, int]]] = field(default_factory=list)
     candidate_cells: Dict[SudokuCandidateType, List[SudokuFigureElementOverlay[Tuple[int, int]]]] = field(default_factory=dict)
+    circle_candidate_values: List[SudokuFigureCircleCandidateElementOverlay] = field(default_factory=list)
     circle_cells: List[SudokuFigureElementOverlay[Tuple[int, int]]] = field(default_factory=list)
     arrow_cells: List[SudokuFigureElementOverlay[Tuple[Tuple[int, int], Tuple[int, int]]]] = field(default_factory=list)
 
 class SudokuFigureFactory:
-    def __init__(self, primary_color: str, secondary_color: str) -> None:
+    def __init__(self, primary_color: str, secondary_color: str, tertiary_color: str) -> None:
         self.__primary_color: str = primary_color
         self.__secondary_color: str = secondary_color
+        self.__tertiary_color: str = tertiary_color
 
     def get_naked_singles_sudoku_figures(self, sudoku: Sudoku) -> List[Figure]:
         return self.__get_single_candidate_principle_sudoku_figures(sudoku, sudoku.candidates_0th_layer_naked_singles)
@@ -52,10 +62,13 @@ class SudokuFigureFactory:
                     overlay=SudokuFigureOverlay(
                         candidate_cells={
                             SudokuCandidateType.ZEROTH_LAYER: [
-                                SudokuFigureElementOverlay(element=element, color=self.__primary_color if element == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(element=element, color=self.__primary_color if element == candidate.position else self.__tertiary_color)
                                 for element in {position for x in deduction_chain for position in x.region_positions} | {candidate.position}
                             ]
-                        }
+                        },
+                        circle_candidate_values=[
+                            SudokuFigureCircleCandidateElementOverlay(value=deduction_chain[0].initial_assumption_value, excluded_positions=[candidate.position])
+                        ]
                     )
                 )
 
@@ -85,7 +98,7 @@ class SudokuFigureFactory:
                         sudoku=current_sudoku,
                         overlay=SudokuFigureOverlay(
                             text_color_cells=[
-                                SudokuFigureElementOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color)
+                                SudokuFigureElementOverlay(element=x, color=self.__primary_color if x == candidate.position else self.__secondary_color if x == deduction.initial_assumption_position else self.__tertiary_color)
                                 for x in middle_consequence_positions
                             ],
                             circle_cells=[
@@ -103,11 +116,11 @@ class SudokuFigureFactory:
                     )
 
                     middle_sub_axes.append(middle_sub_ax)
-
                 final_sub_ax: Axes = self.__sub_ax(ax, position=(2, width_middle))
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
                 self.__connect_ax(ax, initial_sub_ax, final_sub_ax, middle_sub_axes=middle_sub_axes)
                 figures.append(fig)
+                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
@@ -168,7 +181,8 @@ class SudokuFigureFactory:
                     width=1,
                     height=1,
                     fill=False,
-                    linewidth=0.75
+                    linewidth=0.75,
+                    zorder=3
                 )
             )
 
@@ -178,7 +192,7 @@ class SudokuFigureFactory:
                     s=str(sudoku.grid[i][j]),
                     ha="center",
                     va="center",
-                    fontsize=18
+                    fontsize=20
                 )
 
         # Text Colors
@@ -188,6 +202,7 @@ class SudokuFigureFactory:
                 text_positions[position].set_color(cell.color or "black")
 
         # Candidates
+        n_inv_isqrt: float = 1 / n_isqrt
         for candidate_type, cells in overlay.candidate_cells.items():
             for cell in cells:
                 i, j = cell.element
@@ -198,16 +213,25 @@ class SudokuFigureFactory:
                 if not candidates:
                     continue
 
-                sorted_candidates: List[int] = sorted(candidates)
-                text: str = "\n".join(" ".join(str(x) for x in sorted_candidates[k: k + n_isqrt]) for k in range(0, len(sorted_candidates), n_isqrt))
-                sub_ax.text(
-                    *self.__cell_top_left(n, position=(i, j), margins=(+0.05, -0.05)),
-                    s=text,
-                    ha="left",
-                    va="top",
-                    fontsize=12,
-                    color=cell.color or self.__primary_color
-                )
+                color: str = cell.color or self.__primary_color
+                x0, y0 = self.__cell_top_left(n, position=(i, j), margins=(0, -0.05) if n > 4 else None)
+                for idx, candidate in enumerate(sorted(candidates)):
+                    row, column = divmod(idx, n_isqrt)
+                    x, y = x0 + n_inv_isqrt * (column + 0.5), y0 - n_inv_isqrt * (row + 0.5)
+                    highlighted: bool = any(
+                        candidate == circle_candidate.value and (circle_candidate.excluded_positions is None or (i, j) not in circle_candidate.excluded_positions)
+                        for circle_candidate in overlay.circle_candidate_values or []
+                    )
+
+                    sub_ax.text(
+                        x=x,
+                        y=y,
+                        s=str(candidate),
+                        ha="center",
+                        va="center",
+                        fontsize=12 if n > 4 else 15,
+                        color=color if not highlighted else self.__secondary_color
+                    )
 
         # Circles
         for cell in overlay.circle_cells:
@@ -237,7 +261,7 @@ class SudokuFigureFactory:
                     ha="center",
                     va="center",
                     weight="bold",
-                    fontsize=8,
+                    fontsize=10,
                     path_effects=[
                         pe.Stroke(linewidth=3, foreground="white"),
                         pe.Normal()
@@ -266,6 +290,9 @@ class SudokuFigureFactory:
         ax.axis("off")
         ax.grid(True)
         ax.invert_yaxis()
+
+        fig.tight_layout(pad=0)
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
         return fig, ax
 
     @classmethod
@@ -282,8 +309,8 @@ class SudokuFigureFactory:
         def add_arrow(sub_ax_from: Axes, sub_ax_to: Axes):
             ax.add_patch(
                 FancyArrowPatch(
-                    posA=ax.transData.inverted().transform(sub_ax_from.transAxes.transform((0.5, 0))),
-                    posB=ax.transData.inverted().transform(sub_ax_to.transAxes.transform((0.5, 1))),
+                    posA=ax.transData.inverted().transform(sub_ax_from.transAxes.transform((0.5, 0))).tolist(),
+                    posB=ax.transData.inverted().transform(sub_ax_to.transAxes.transform((0.5, 1))).tolist(),
                     arrowstyle="-|>",
                     mutation_scale=10,
                     linewidth=3,
@@ -319,7 +346,7 @@ class SudokuFigureFactory:
         return j + 0.5 + dx, n - i - 0.5 + dy
 
 if __name__ == "__main__":
-    sf = SudokuFigureFactory(primary_color="red", secondary_color="blue")
+    sf = SudokuFigureFactory(primary_color="red", secondary_color="darkgreen", tertiary_color="blue")
     # sf.get_consensus_sudoku_figures(
     #     Sudoku(
     #         grid=[
