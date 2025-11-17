@@ -13,7 +13,7 @@ from matplotlib.text import Text
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate, SudokuConsensusDeductionChain
 
-# matplotlib.use("Agg")
+matplotlib.use("Agg")
 
 @dataclass(frozen=True)
 class SudokuFigureElementOverlay[T]:
@@ -344,50 +344,3 @@ class SudokuFigureFactory:
     def __cell_center(cls, n: int, position: Tuple[int, int], margins: Optional[Tuple[float, float]] = None) -> Tuple[float, float]:
         (i, j), (dx, dy) = position, margins or (0, 0)
         return j + 0.5 + dx, n - i - 0.5 + dy
-
-if __name__ == "__main__":
-    sf = SudokuFigureFactory(primary_color="red", secondary_color="darkgreen", tertiary_color="blue")
-    # sf.get_consensus_sudoku_figures(
-    #     Sudoku(
-    #         grid=[
-    #             [0, 0, 0, 0],
-    #             [0, 4, 2, 0],
-    #             [4, 0, 3, 0],
-    #             [0, 3, 0, 0]
-    #         ]
-    #     )
-    # )
-
-    sf.get_naked_singles_sudoku_figures(
-        Sudoku(
-            grid=[
-                [2, 7, 1, 8, 9, 6, 4, 3, 0],
-                [9, 4, 3, 5, 2, 7, 6, 8, 1],
-                [8, 5, 6, 3, 1, 4, 7, 9, 2],
-                [4, 8, 0, 0, 0, 0, 0, 2, 0],
-                [6, 3, 0, 0, 0, 0, 0, 0, 0],
-                [5, 1, 0, 0, 0, 0, 0, 0, 0],
-                [3, 9, 5, 0, 0, 0, 0, 7, 0],
-                [7, 2, 4, 0, 3, 8, 5, 0, 9],
-                [1, 6, 8, 0, 0, 0, 2, 4, 3]
-            ]
-        )
-    )
-
-    # sf.get_consensus_sudoku_figures(
-    #     Sudoku(
-    #         grid=[
-    #             [2, 7, 1, 8, 9, 6, 0, 0, 0],
-    #             [9, 4, 3, 5, 2, 7, 6, 8, 1],
-    #             [8, 5, 6, 3, 1, 4, 7, 9, 2],
-    #             [4, 8, 0, 0, 0, 0, 0, 2, 0],
-    #             [6, 3, 0, 0, 0, 0, 0, 0, 0],
-    #             [5, 1, 0, 0, 0, 0, 0, 0, 0],
-    #             [3, 9, 5, 0, 0, 0, 0, 7, 0],
-    #             [7, 2, 4, 0, 3, 8, 5, 0, 9],
-    #             [1, 6, 8, 0, 0, 0, 2, 4, 3]
-    #         ]
-    #     )
-    # )
-
-    plt.show()

@@ -85,6 +85,7 @@ dependencies = [
 
 [package.dev-dependencies]
 scripts = [
+    { name = "pillow" },
     { name = "tabulate" },
 ]
 tests = [
@@ -102,7 +103,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = []
-scripts = [{ name = "tabulate", specifier = ">=0.9.0" }]
+scripts = [
+    { name = "pillow", specifier = ">=12.0.0" },
+    { name = "tabulate", specifier = ">=0.9.0" },
+]
 tests = [{ name = "pytest", specifier = ">=8.4.2" }]
 
 [[package]]

@@ -15,6 +15,6 @@ class Sudoku(SQLModel, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
-            "lazy": "selectin"
+            "lazy": "joined"
         }
     )
