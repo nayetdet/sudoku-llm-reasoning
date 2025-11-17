@@ -72,18 +72,12 @@ class SudokuFigureFactory:
                     )
                 )
 
-                current_sudoku: Sudoku = sudoku
                 middle_sub_axes: List[Axes] = []
                 for step_column, deduction in enumerate(deduction_chain):
                     if len(deduction_chain) % 2 == 0 and step_column >= width_middle:
                         step_column += 1
 
-                    current_sudoku = current_sudoku.next_step_at_position(
-                        deduction.initial_assumption_position[0],
-                        deduction.initial_assumption_position[1],
-                        deduction.initial_assumption_value
-                    )
-
+                    current_sudoku: Sudoku = sudoku
                     for consequence in deduction.consequences:
                         current_sudoku = current_sudoku.next_step_at_position(
                             consequence[0][0],
@@ -120,6 +114,7 @@ class SudokuFigureFactory:
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
                 self.__connect_ax(ax, initial_sub_ax, final_sub_ax, middle_sub_axes=middle_sub_axes)
                 figures.append(fig)
+                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
