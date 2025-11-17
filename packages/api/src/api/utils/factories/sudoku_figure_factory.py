@@ -114,7 +114,6 @@ class SudokuFigureFactory:
                 self.__plot_final_sudoku_on_sub_ax(sub_ax=final_sub_ax, sudoku=sudoku, candidate=candidate)
                 self.__connect_ax(ax, initial_sub_ax, final_sub_ax, middle_sub_axes=middle_sub_axes)
                 figures.append(fig)
-                break
         return figures
 
     def __get_single_candidate_principle_sudoku_figures(self, sudoku: Sudoku, candidates: Tuple[SudokuCandidate, ...]) -> List[Figure]:
