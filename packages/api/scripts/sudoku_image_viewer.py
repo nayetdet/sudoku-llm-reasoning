@@ -26,6 +26,9 @@ class SudokuImageViewer:
 
     def __display_image(self) -> None:
         image_description, image = self.__images[self.__current_index]
+        image = image.copy()
+        image.thumbnail((750, 750))
+
         self.__image = PhotoImage(image)
         self.__image_label.config(image=self.__image)
         self.__description_label.config(text=image_description)
