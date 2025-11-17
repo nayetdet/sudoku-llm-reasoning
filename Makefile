@@ -1,4 +1,4 @@
-.PHONY: install api api-migrations api-view api-tests webui
+.PHONY: install api api-migrations api-view api-image-view api-tests webui
 
 install:
 	uv sync --all-groups --all-packages
@@ -10,7 +10,10 @@ api-migrations:
 	cd packages/api && uv run alembic upgrade head
 
 api-view:
-	cd packages/api && uv run scripts/sudoku_db_reader.py
+	cd packages/api && uv run scripts/sudoku_viewer.py
+
+api-image-view:
+	cd packages/api && uv run scripts/sudoku_image_viewer.py
 
 api-tests:
 	cd packages/api && uv run pytest
