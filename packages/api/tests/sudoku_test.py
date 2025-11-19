@@ -1,12 +1,12 @@
 from typing import List
-from api.enums.sudoku_candidate_type import SudokuCandidateType
+from api.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from api.mappers.sudoku_mapper import SudokuMapper
 from api.models.sudoku import Sudoku as SudokuModel
 from api.repositories.sudoku_repository import SudokuRepository
 from core.sudoku import Sudoku
 
 def test_naked_singles_sudoku() -> None:
-    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES)
+    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES)
     assert sudoku_models
 
     for sudoku_model in sudoku_models:
@@ -15,7 +15,7 @@ def test_naked_singles_sudoku() -> None:
         assert sudoku.candidates_0th_layer_naked_singles
 
 def test_hidden_singles_sudoku() -> None:
-    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES)
+    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES)
     assert sudoku_models
 
     for sudoku_model in sudoku_models:
@@ -41,7 +41,7 @@ def test_example_consensus_sudoku() -> None:
     assert sudoku.candidates_1st_layer_consensus
 
 def test_consensus_sudoku() -> None:
-    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuCandidateType.FIRST_LAYER_CONSENSUS)
+    sudoku_models: List[SudokuModel] = SudokuRepository.get_all(candidate_type=SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS)
     assert sudoku_models
 
     for sudoku_model in sudoku_models:
