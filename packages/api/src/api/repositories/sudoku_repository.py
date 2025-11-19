@@ -3,13 +3,13 @@ from typing import List, Optional
 from sqlalchemy import null
 from sqlmodel import Session, select, func
 from api.database import engine
-from api.enums.sudoku_candidate_type import SudokuCandidateType
 from api.models.sudoku import Sudoku
 from api.models.sudoku_image import SudokuImage
+from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 
 class SudokuRepository:
     @classmethod
-    def get_all(cls, n: Optional[int] = None, candidate_type: Optional[SudokuCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None, page: Optional[int] = None, size: Optional[int] = None) -> List[Sudoku]:
+    def get_all(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None, page: Optional[int] = None, size: Optional[int] = None) -> List[Sudoku]:
         with Session(engine) as session:
             stmt = select(Sudoku).outerjoin(SudokuImage).group_by(Sudoku.id)
             if n is not None:
@@ -31,7 +31,7 @@ class SudokuRepository:
             return session.exec(stmt).first()
 
     @classmethod
-    def get_random(cls, n: Optional[int] = None, candidate_type: Optional[SudokuCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> Optional[Sudoku]:
+    def get_random(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> Optional[Sudoku]:
         entries: List[Sudoku] = cls.get_all(n=n, candidate_type=candidate_type, grid=grid, has_images=has_images)
         if not entries:
             return None
@@ -67,7 +67,7 @@ class SudokuRepository:
             return True
 
     @classmethod
-    def count(cls, n: Optional[int] = None, candidate_type: Optional[SudokuCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> int:
+    def count(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> int:
         with Session(engine) as session:
             stmt = select(func.count(Sudoku.id)).select_from(Sudoku).outerjoin(SudokuImage).group_by(Sudoku.id)
             if n is not None:

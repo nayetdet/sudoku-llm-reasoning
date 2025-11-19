@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 from typing import Literal
-from api.enums.sudoku_candidate_type import SudokuCandidateType
+from api.config import Config
+from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 
 class SudokuRequestSchema(BaseModel):
     n: Literal[4, 9]
-    candidate_type: SudokuCandidateType
-    target_count: int = 150
-    max_attempts: int = 1000
+    candidate_type: SudokuSimplifiedCandidateType
+    target_count: int = Config.API.Sudoku.DEFAULT_TARGET_COUNT
+    max_attempts: int = Config.API.Sudoku.DEFAULT_MAX_ATTEMPTS
