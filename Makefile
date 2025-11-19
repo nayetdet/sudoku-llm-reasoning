@@ -16,4 +16,4 @@ api-tests:
 	uv run --package api pytest
 
 webui:
-	cd packages/webui && uv run streamlit run src/webui/main.py
+	cd packages/webui && uv run streamlit run src/webui/accuracy_dashboard.py

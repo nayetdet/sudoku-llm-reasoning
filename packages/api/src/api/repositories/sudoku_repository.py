@@ -1,7 +1,10 @@
 import random
+from datetime import datetime
 from typing import List, Optional
+
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select, func
+
 from api.database import engine
 from api.enums.sudoku_candidate_type import SudokuCandidateType
 from api.models.sudoku import Sudoku
@@ -74,3 +77,17 @@ class SudokuRepository:
             if grid is not None:
                 stmt = stmt.where(Sudoku.grid == grid)
             return session.scalar(stmt)
+
+    @classmethod
+    def mark_llm_result(cls, sudoku_id: int, is_correct: bool) -> Optional[Sudoku]:
+        with Session(engine) as session:
+            sudoku = session.get(Sudoku, sudoku_id)
+            if sudoku is None:
+                return None
+
+            sudoku.llm_is_correct = is_correct
+            sudoku.llm_checked_at = datetime.utcnow()
+            session.add(sudoku)
+            session.commit()
+            session.refresh(sudoku)
+            return sudoku

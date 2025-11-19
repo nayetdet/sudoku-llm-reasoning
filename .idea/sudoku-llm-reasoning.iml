@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/packages/webui/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="uv (sudoku-llm-reasoning) (9)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="uv (sudoku-llm-reasoningoi) (3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

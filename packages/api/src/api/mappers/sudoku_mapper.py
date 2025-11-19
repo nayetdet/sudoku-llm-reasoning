@@ -1,5 +1,5 @@
 import base64
-from typing import Iterable, Any, Dict
+from typing import Iterable, Any, Dict, List, Optional
 
 from api.deps.serializer_instance import SerializerInstance
 from api.enums.sudoku_candidate_type import SudokuCandidateType
@@ -46,17 +46,27 @@ class SudokuMapper:
 
     @classmethod
     def to_sudoku_response_schema(cls, sudoku_model: SudokuModel) -> SudokuResponseSchema:
+        images: Optional[List[SudokuImageResponseSchema]] = None
+        if sudoku_model.images:
+            images = [
+                SudokuImageResponseSchema(
+                    id=image.id,
+                    mime=image.mime,
+                    content_base64=(
+                        base64.b64encode(image.content).decode("utf-8")
+                        if image.content is not None
+                        else None
+                    ),
+                )
+                for image in sudoku_model.images
+            ]
+
         return SudokuResponseSchema(
             id=sudoku_model.id,
             n=sudoku_model.n,
             candidate_type=sudoku_model.candidate_type,
             grid=sudoku_model.grid,
-            images=[
-                SudokuImageResponseSchema(
-                    id=image.id,
-                    mime=image.mime,
-                    content_base64=base64.b64encode(image.content).decode("utf-8")
-                )
-                for image in (sudoku_model.images or [])
-            ]
+            images=images,
+            llm_is_correct=sudoku_model.llm_is_correct,
+            llm_checked_at=sudoku_model.llm_checked_at,
         )
