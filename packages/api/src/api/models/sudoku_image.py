@@ -9,6 +9,6 @@ class SudokuImage(SQLModel, table=True):
     __tablename__ = "sudoku_image"
     id: Optional[int] = Field(default=None, primary_key=True)
     sudoku_id: int = Field(foreign_key="sudoku.id", index=True)
-    content: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    content: Optional[bytes] = Field(sa_column=Column(LargeBinary, nullable=True))
     mime: str = Field(default="image/png", sa_column=Column(String(64), nullable=False))
     sudoku: "Sudoku" = Relationship(back_populates="images")
