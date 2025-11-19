@@ -1,4 +1,5 @@
 import random
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import null
 from sqlmodel import Session, select, func
@@ -54,6 +55,19 @@ class SudokuRepository:
             session.commit()
             session.refresh(sudoku_model)
             return sudoku_model
+
+    @classmethod
+    def update_inference_result(cls, sudoku_id: int, is_correct: bool) -> Optional[Sudoku]:
+        with Session(engine) as session:
+            sudoku = session.get(Sudoku, sudoku_id)
+            if sudoku is None:
+                return None
+
+            sudoku.inference_succeeded = is_correct
+            session.add(sudoku)
+            session.commit()
+            session.refresh(sudoku)
+            return sudoku
 
     @classmethod
     def delete_by_id(cls, sudoku_id: int) -> bool:
