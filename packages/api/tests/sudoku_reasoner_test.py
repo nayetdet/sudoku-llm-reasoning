@@ -1,14 +1,11 @@
+import pytest
 from dataclasses import dataclass
 from typing import Callable, Tuple
-
-import pytest
-
 from api.mappers.sudoku_mapper import SudokuMapper
 from api.repositories.sudoku_repository import SudokuRepository
 from core.enums.sudoku_candidate_type import SudokuCandidateType
 from core.sudoku import Sudoku, SudokuCandidate
 from core.sudoku_reasoner import SudokuReasoner
-
 
 @dataclass(frozen=True)
 class TechniqueScenario:
@@ -17,7 +14,6 @@ class TechniqueScenario:
     candidate_type: SudokuCandidateType
     solver: Callable[[SudokuReasoner, Sudoku], object]
     verified_attr: str
-
 
 def _run_accuracy_check(sudoku_reasoner: SudokuReasoner, scenario: TechniqueScenario) -> None:
     successes: int = 0
@@ -40,10 +36,10 @@ def _run_accuracy_check(sudoku_reasoner: SudokuReasoner, scenario: TechniqueScen
         )
 
         result_schema = scenario.solver(sudoku_reasoner, sudoku)
-        llm_response = SudokuMapper.to_sudoku_candidate(result_schema)
+        llm_response = SudokuCandidate(value=result_schema.value, position=result_schema.position)
 
         is_correct: bool = llm_response in verified_candidates
-        SudokuRepository.mark_llm_result(sudoku_model.id, is_correct)
+        SudokuRepository.update_inference_result(sudoku_model.id, is_correct)
 
         if is_correct:
             successes += 1
@@ -64,7 +60,6 @@ def _run_accuracy_check(sudoku_reasoner: SudokuReasoner, scenario: TechniqueScen
             f"(acurácia {accuracy:.2%}). Exemplos:\n{preview}"
         )
 
-
 def test_naked_singles_analysis(sudoku_reasoner: SudokuReasoner) -> None:
     _run_accuracy_check(
         sudoku_reasoner,
@@ -77,7 +72,6 @@ def test_naked_singles_analysis(sudoku_reasoner: SudokuReasoner) -> None:
         ),
     )
 
-
 def test_hidden_singles_analysis(sudoku_reasoner: SudokuReasoner) -> None:
     _run_accuracy_check(
         sudoku_reasoner,
@@ -89,7 +83,6 @@ def test_hidden_singles_analysis(sudoku_reasoner: SudokuReasoner) -> None:
             verified_attr="candidates_0th_layer_hidden_singles",
         ),
     )
-
 
 def test_consensus_analysis(sudoku_reasoner: SudokuReasoner) -> None:
     _run_accuracy_check(

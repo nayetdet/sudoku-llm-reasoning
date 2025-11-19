@@ -1,6 +1,6 @@
 from enum import Enum
 
-class SudokuCandidateType(Enum):
+class SudokuSimplifiedCandidateType(Enum):
     ZEROTH_LAYER_NAKED_SINGLES = "ZEROTH_LAYER_NAKED_SINGLES"
     ZEROTH_LAYER_HIDDEN_SINGLES = "ZEROTH_LAYER_HIDDEN_SINGLES"
     FIRST_LAYER_CONSENSUS = "FIRST_LAYER_CONSENSUS"
