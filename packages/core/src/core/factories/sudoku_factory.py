@@ -3,11 +3,8 @@ import random
 import multiprocessing
 from concurrent.futures import Future, as_completed
 from concurrent.futures.process import ProcessPoolExecutor
-from typing import List, Tuple, Optional
-from api.config import Config
-from api.enums.sudoku_candidate_type import SudokuCandidateType
-from api.logger import logger
-from api.repositories.sudoku_repository import SudokuRepository
+from typing import List, Tuple, Optional, Iterator
+from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from core.sudoku import Sudoku, SudokuCandidate
 
 class SudokuFactory:
@@ -25,10 +22,7 @@ class SudokuFactory:
     def get_solved_sudoku(self) -> Sudoku:
         return random.choice(self.__sudoku_solutions)
 
-    def get_sudokus_by_candidate_type(self, candidate_type: SudokuCandidateType, target_count: int, max_attempts: int) -> List[Sudoku]:
-        from api.mappers.sudoku_mapper import SudokuMapper
-
-        sudokus: List[Sudoku] = []
+    def get_sudokus_by_candidate_type(self, candidate_type: SudokuSimplifiedCandidateType, target_count: int, max_attempts: int) -> Iterator[Optional[Sudoku]]:
         with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             futures: List[Future[Optional[Sudoku]]] = [
                 executor.submit(self.convert_sudoku_grid_into_candidate_type, self.get_solved_sudoku().grid, candidate_type)
@@ -36,25 +30,10 @@ class SudokuFactory:
             ]
 
             for future in as_completed(futures):
-                sudoku: Optional[Sudoku] = future.result()
-                if sudoku is None:
-                    logger.info(f"{self.n}x{self.n} grid | {candidate_type.name}: Sudoku generation failed")
-                    continue
-
-                if SudokuRepository.create(SudokuMapper.to_sudoku_model(sudoku, candidate_type=candidate_type)):
-                    sudokus.append(sudoku)
-                    logger.info(f"{self.n}x{self.n} grid | {candidate_type.name}: Sudoku generation succeeded ({len(sudokus)}/{target_count})")
-                    if len(sudokus) >= target_count:
-                        for f in futures:
-                            f.cancel()
-                        break
-                else: logger.info(f"{self.n}x{self.n} grid | {candidate_type.name}: Sudoku already exists in, skipping")
-        if len(sudokus) != target_count:
-            logger.warning(f"Could only generate {len(sudokus)}/{target_count} {self.n}x{self.n} grids in for candidate type: {candidate_type.name}")
-        return sudokus
+                yield future.result()
 
     @staticmethod
-    def convert_sudoku_grid_into_candidate_type(sudoku_grid: Tuple[Tuple[int, ...], ...], candidate_type: SudokuCandidateType) -> Optional[Sudoku]:
+    def convert_sudoku_grid_into_candidate_type(sudoku_grid: Tuple[Tuple[int, ...], ...], candidate_type: SudokuSimplifiedCandidateType) -> Optional[Sudoku]:
         n: int = len(sudoku_grid)
         sudoku_grid: List[List[int]] = [list(x) for x in sudoku_grid]
         sudoku_grid_positions: List[Tuple[int, int]] = [(i, j) for i in range(n) for j in range(n)]
@@ -66,16 +45,16 @@ class SudokuFactory:
             candidates: Optional[Tuple[SudokuCandidate, ...]] = None
 
             match candidate_type:
-                case SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES:
-                    min_removed_cells: int = math.ceil(sudoku.area() * Config.Sudoku.NAKED_SINGLES_MIN_RATIO)
+                case SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES:
+                    min_removed_cells: int = math.ceil(sudoku.area() * 0.25)
                     if removed_cells < min_removed_cells or sudoku.candidates_0th_layer_hidden_singles:
                         continue
                     candidates = sudoku.candidates_0th_layer_naked_singles
-                case SudokuCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES:
+                case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES:
                     if sudoku.candidates_0th_layer_naked_singles:
                         continue
                     candidates = sudoku.candidates_0th_layer_hidden_singles
-                case SudokuCandidateType.FIRST_LAYER_CONSENSUS:
+                case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS:
                     if sudoku.candidates_0th_layer_naked_singles or sudoku.candidates_0th_layer_hidden_singles:
                         continue
                     candidates = sudoku.candidates_1st_layer_consensus

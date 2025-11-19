@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 from api.config import Config
-from api.utils.factories.sudoku_factory import SudokuFactory
-from api.utils.factories.sudoku_figure_factory import SudokuFigureFactory
+from core.factories.sudoku_factory import SudokuFactory
+from core.factories.sudoku_figure_factory import SudokuFigureFactory
 
 class FactoryInstance:
     __sudoku_factories: Dict[int, SudokuFactory] = {}
@@ -10,11 +10,11 @@ class FactoryInstance:
     @classmethod
     def get_sudoku_factory(cls, n: int) -> SudokuFactory:
         if n not in cls.__sudoku_factories:
-            cls.__sudoku_factories[n] = SudokuFactory(n, max_solutions=Config.Sudoku.MAX_SOLUTIONS)
+            cls.__sudoku_factories[n] = SudokuFactory(n, max_solutions=Config.API.Sudoku.DEFAULT_MAX_SOLUTIONS)
         return cls.__sudoku_factories[n]
 
     @classmethod
     def get_sudoku_figure_factory(cls) -> SudokuFigureFactory:
         if cls.__sudoku_figure_factory is None:
-            cls.__sudoku_figure_factory = SudokuFigureFactory(color="red")
+            cls.__sudoku_figure_factory = SudokuFigureFactory(primary_color="red", secondary_color="darkgreen", tertiary_color="blue")
         return cls.__sudoku_figure_factory

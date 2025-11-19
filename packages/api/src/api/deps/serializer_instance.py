@@ -1,6 +1,6 @@
 from typing import Optional
 from api.deps.factory_instance import FactoryInstance
-from api.utils.serializers.sudoku_figure_serializer import SudokuFigureSerializer
+from core.serializers.sudoku_figure_serializer import SudokuFigureSerializer
 
 class SerializerInstance:
     __sudoku_figure_serializer: Optional[SudokuFigureSerializer] = None

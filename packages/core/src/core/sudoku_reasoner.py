@@ -2,32 +2,30 @@ import json
 import logging
 import re
 import textwrap
-from typing import Dict, Any
-
 import google.generativeai as genai
+from typing import Dict, Any
 from google.generativeai import GenerativeModel
-
-from api.mappers.sudoku_mapper import SudokuMapper
-from core.schemas.sudoku_schemas import SudokuLLMCandidateSchema, Technique
+from core.mappers.sudoku_candidate_mapper import SudokuCandidateMapper
+from core.schemas.sudoku_llm_candidate_schema import SudokuLLMCandidateSchema
 from core.sudoku import Sudoku
+from packages.core.src.core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 
-
-TECH_META: Dict[Technique, Dict[str, Any]] = {
-    Technique.NAKED_SINGLES: {
+TECH_META: Dict[SudokuSimplifiedCandidateType, Dict[str, Any]] = {
+    SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES: {
         "label_pt": "Naked Singles",
         "scan_line": "Faça apenas UMA varredura de Naked Singles neste Sudoku.",
         "explanation_hint": "Célula com exatamente 1 candidato possível neste estado.",
-        "code": 1,
+        "code": "ZEROTH_LAYER_NAKED_SINGLES",
         "no_results_msg": "No Naked Singles found",
     },
-    Technique.HIDDEN_SINGLES: {
+    SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: {
         "label_pt": "Hidden Singles",
         "scan_line": "Faça apenas UMA varredura de Hidden Singles neste Sudoku.",
         "explanation_hint": "Valor único restante em uma linha/coluna/bloco.",
-        "code": 2,
+        "code": "ZEROTH_LAYER_HIDDEN_SINGLES",
         "no_results_msg": "No Hidden Singles found",
     },
-    Technique.CONSENSUS_PRINCIPLE: {
+    SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: {
         "label_pt": "Consensus Principle",
         "scan_line": "Faça apenas UMA varredura usando o Consensus Principle neste Sudoku.",
         "explanation_hint": (
@@ -35,11 +33,10 @@ TECH_META: Dict[Technique, Dict[str, Any]] = {
             "válidos convergem para o mesmo valor na célula alvo, no estilo de relatório "
             "detalhado do exemplo de Sudoku 4×4 abaixo."
         ),
-        "code": 3,
+        "code": "FIRST_LAYER_CONSENSUS",
         "no_results_msg": "No results for Consensus Principle",
-    },
+    }
 }
-
 
 class SudokuReasoner:
     def __init__(self, llm_model: str, llm_api_key: str) -> None:
@@ -47,34 +44,32 @@ class SudokuReasoner:
         self.__llm: GenerativeModel = GenerativeModel(llm_model)
 
     def solve_naked_singles(self, sudoku: Sudoku) -> SudokuLLMCandidateSchema:
-        return self.__solve_by_technique(sudoku, Technique.NAKED_SINGLES)
+        return self.__solve_by_technique(sudoku, SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES)
 
     def solve_hidden_singles(self, sudoku: Sudoku) -> SudokuLLMCandidateSchema:
-        return self.__solve_by_technique(sudoku, Technique.HIDDEN_SINGLES)
+        return self.__solve_by_technique(sudoku, SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES)
 
     def solve_consensus_principle(self, sudoku: Sudoku) -> SudokuLLMCandidateSchema:
-        return self.__solve_by_technique(sudoku, Technique.CONSENSUS_PRINCIPLE)
+        return self.__solve_by_technique(sudoku, SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS)
 
-    def __solve_by_technique(self, sudoku: Sudoku, technique: Technique) -> SudokuLLMCandidateSchema:
-        logging.info(f"Generating prompt and sending Sudoku to LLM for ONE-PASS {technique.name} scan")
+    def __solve_by_technique(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> SudokuLLMCandidateSchema:
+        logging.info(f"Generating prompt and sending Sudoku to LLM for ONE-PASS {candidate_type.name} scan")
         try:
-            prompt = self._build_prompt_for(sudoku, technique)
+            prompt = self._build_prompt_for(sudoku, candidate_type)
             resp = self.__llm.generate_content(prompt)
             text = resp.text or ""
         except Exception as e:
             logging.error("An error occurred while generating content from the LLM", exc_info=True)
             raise e
 
-        data: Dict[str, Any] = self._sanitize_and_parse_json(text, technique)
-        result: SudokuLLMCandidateSchema = SudokuMapper.to_llm_candidates_schema(data)
-
-        logging.info(f"LLM response received and processed into {technique.name} ONE-PASS schema")
+        data: Dict[str, Any] = self._sanitize_and_parse_json(text, candidate_type)
+        result: SudokuLLMCandidateSchema = SudokuCandidateMapper.to_llm_candidates_schema(data)
+        logging.info(f"LLM response received and processed into {candidate_type.name} ONE-PASS schema")
         return result
 
     @staticmethod
-    def _build_prompt_for(sudoku: Sudoku, technique: Technique) -> str:
-        meta = TECH_META[technique]
-
+    def _build_prompt_for(sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> str:
+        meta = TECH_META[candidate_type]
         common_rules = f"""
             {meta["scan_line"]} NÃO aplique nenhuma jogada de fato na grade real.
             Identifique APENAS uma ocorrência (se existir) de {meta["label_pt"]} no estado atual.
@@ -88,10 +83,10 @@ class SudokuReasoner:
             3) Se existirem VÁRIAS ocorrências agora, escolha APENAS UMA seguindo esta ordem:
                a) menor linha; b) em empate, menor coluna (ordem de leitura).
             4) O JSON DEVE ter EXATAMENTE estes 4 campos no nível raiz:
-               - "position": [i, j]                // ambos inteiros
                - "value": inteiro                  // valor confirmado
+               - "position": [i, j]                // ambos inteiros
+               - "candidate_type": {meta["code"]}  // inteiro exato: {meta["code"]}
                - "explanation": string             // ver FORMATO DA EXPLANATION abaixo
-               - "type": {meta["code"]}            // inteiro exato: {meta["code"]}
             5) NÃO inclua quaisquer outros campos (ex.: "index", "candidates", "technique", "notes", etc.).
             6) NÃO aplique jogadas na grade real, NÃO altere a grade fornecida e NÃO invente dados ausentes.
             7) Se não houver resultados nesta varredura, retorne exatamente:
@@ -104,11 +99,11 @@ class SudokuReasoner:
            10) NÃO use probabilidades, palpites ou linguagem condicional (“talvez”, “pode ser”).
 
            ATENÇÃO ESPECIAL:
-           • O campo "type" É OBRIGATÓRIO e DEVE ser exatamente {meta["code"]}.
+           • O campo "candidate_type" É OBRIGATÓRIO e DEVE ser exatamente {meta["code"]}.
            • Responda com UM ÚNICO objeto JSON, sem comentários, sem texto extra.
         """.strip()
 
-        if technique == Technique.NAKED_SINGLES:
+        if candidate_type == SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES:
             extra = """
                 REGRAS ESPECÍFICAS — NAKED SINGLES:
                 • Comprove que a célula [i,j] tem CANDIDATOS = {1..9} \\ (usados_na_linha ∪ usados_na_coluna ∪ usados_no_bloco)
@@ -132,7 +127,7 @@ class SudokuReasoner:
                 \"\"\"
             """.strip()
 
-        elif technique == Technique.HIDDEN_SINGLES:
+        elif candidate_type == SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES:
             extra = """
                 REGRAS ESPECÍFICAS — HIDDEN SINGLES:
                 • Mostre que o "value" aparece como candidato em EXATAMENTE UMA célula dentro de UMA unidade
@@ -214,9 +209,9 @@ class SudokuReasoner:
 
                 {{
                   "position": [i, j],
+                  "candidate_type": 3,
                   "value": value,
-                  "explanation": "RELATÓRIO COMPLETO DO CONSENSUS...",
-                  "type": 3
+                  "explanation": "RELATÓRIO COMPLETO DO CONSENSUS..."
                 }}
             """.strip()
 
@@ -225,8 +220,8 @@ class SudokuReasoner:
             {{
               "position": [3, 5],
               "value": 9,
+              "candidate_type": {meta["code"]}
               "explanation": "{meta["explanation_hint"]} — veja mini-relatório acima.",
-              "type": {meta["code"]}
             }}
 
             LEMBRETE FINAL:
@@ -246,7 +241,7 @@ class SudokuReasoner:
         return prompt
 
     @staticmethod
-    def _sanitize_and_parse_json(text: str, technique: Technique) -> Dict[str, Any]:
+    def _sanitize_and_parse_json(text: str, candidate_type: SudokuSimplifiedCandidateType) -> Dict[str, Any]:
         if not text:
             raise ValueError("Empty response from LLM")
 
@@ -257,8 +252,7 @@ class SudokuReasoner:
             flags=re.IGNORECASE,
         )
 
-        try:
-            obj = json.loads(sanitized_text)
+        try: obj = json.loads(sanitized_text)
         except json.JSONDecodeError as e:
             logging.error("Failed to parse LLM JSON response", exc_info=True)
             logging.debug("Raw LLM text: %s", text)
@@ -266,8 +260,6 @@ class SudokuReasoner:
 
         if isinstance(obj, dict) and "error" in obj:
             return obj
-
         if isinstance(obj, dict) and "type" not in obj:
-            obj["type"] = TECH_META[technique]["code"]
-
+            obj["type"] = TECH_META[candidate_type]["code"]
         return obj

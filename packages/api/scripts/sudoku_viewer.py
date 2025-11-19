@@ -2,9 +2,9 @@ from typing import List, Tuple
 from tabulate import tabulate
 from api.repositories.sudoku_repository import SudokuRepository
 
-class SudokuDBReader:
+class SudokuViewer:
     @classmethod
-    def read(cls) -> None:
+    def view(cls) -> None:
         table: List[Tuple[int, int, str, List[List[int]]]] = []
         for sudoku in SudokuRepository.get_all():
             table.append((
@@ -18,7 +18,7 @@ class SudokuDBReader:
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
 def main() -> None:
-    SudokuDBReader.read()
+    SudokuViewer.view()
 
 if __name__ == "__main__":
     main()
