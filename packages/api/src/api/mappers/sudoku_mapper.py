@@ -1,5 +1,5 @@
 import base64
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional
 from api.deps.serializer_instance import SerializerInstance
 from api.models.sudoku import Sudoku as SudokuModel
 from api.models.sudoku_image import SudokuImage as SudokuImageModel
@@ -55,6 +55,7 @@ class SudokuMapper:
             n=sudoku_model.n,
             candidate_type=sudoku_model.candidate_type,
             grid=sudoku_model.grid,
+            inference_succeeded=sudoku_model.inference_succeeded,
             images=[
                 SudokuImageMapper.to_image_response_schema(image)
                 for image in (sudoku_model.images or [])

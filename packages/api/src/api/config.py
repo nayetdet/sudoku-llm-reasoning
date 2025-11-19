@@ -11,6 +11,10 @@ class Config:
             DEFAULT_TARGET_COUNT: int = int(getenv("API_SUDOKU_DEFAULT_TARGET_COUNT") or 150)
             DEFAULT_MAX_ATTEMPTS: int = int(getenv("API_SUDOKU_DEFAULT_MAX_ATTEMPTS") or 1000)
 
+    class LLM:
+        MODEL: str = getenv("LLM_MODEL")
+        API_KEY: str = getenv("LLM_API_KEY")
+
     class Paths:
         ROOT: Path = Path(__file__).resolve().parents[2]
         DATA: Path = ROOT / "data"
