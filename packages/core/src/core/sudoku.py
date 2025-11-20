@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import Self, List, Tuple, Set, Dict, Optional, Sequence, Any
 from z3 import Int, BoolRef, ModelRef, And, Or, Distinct, If, Solver, sat
 from core.enums.sudoku_candidate_type import SudokuCandidateType
-from core.exceptions.sudoku_exceptions import SudokuInvalidSizeException
+from core.exceptions.sudoku_exceptions import SudokuInvalidDimensionsException
 from core.utils.cache_utils import cachemethod
 
 @dataclass(frozen=True)
@@ -26,9 +26,9 @@ class SudokuConsensusDeductionChain:
 class Sudoku:
     def __new__(cls, grid: Sequence[Sequence[int]]) -> Self:
         if any(len(row) != len(grid) for row in grid):
-            raise SudokuInvalidSizeException("Grid must be square")
+            raise SudokuInvalidDimensionsException("Grid must be square")
         if len(grid) != math.isqrt(len(grid)) ** 2:
-            raise SudokuInvalidSizeException("Grid size must be a perfect square")
+            raise SudokuInvalidDimensionsException("Grid size must be a perfect square")
         return super().__new__(cls)
 
     def __init__(self, grid: Sequence[Sequence[int]]) -> None:
