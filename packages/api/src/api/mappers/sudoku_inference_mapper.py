@@ -1,9 +1,10 @@
+from typing import Optional
 from api.models.sudoku_inference import SudokuInference as SudokuInferenceModel
 from api.schemas.responses.sudoku_inference_response_schema import SudokuInferenceResponseSchema
 
 class SudokuInferenceMapper:
     @classmethod
-    def to_inference(cls, sudoku_id: int, succeeded: bool, explanation: str) -> SudokuInferenceModel:
+    def to_inference(cls, sudoku_id: int, succeeded: bool, explanation: Optional[str]) -> SudokuInferenceModel:
         return SudokuInferenceModel(
             sudoku_id=sudoku_id,
             succeeded=succeeded,

@@ -1,5 +1,5 @@
 import itertools
-from typing import Tuple
+from typing import Tuple, Optional
 from sqlmodel import null
 from api.deps.agent_instance import AgentInstance
 from api.logger import logger
@@ -26,24 +26,26 @@ class SudokuInferenceService:
                     break
 
                 sudoku: Sudoku = SudokuMapper.to_sudoku(sudoku_model)
-                try: llm_candidate: SudokuInferenceCandidate = AgentInstance.get_sudoku_inference_agent().solve(sudoku, candidate_type=candidate_type)
+                try: llm_candidate: Optional[SudokuInferenceCandidate] = AgentInstance.get_sudoku_inference_agent().solve(sudoku, candidate_type=candidate_type)
                 except SudokuInferenceAgentGenerationException:
                     logger.error(f"{n}x{n} grid | {candidate_type.name}: LLM inference failed for sudoku_id={sudoku_model.id}")
                     continue
 
-                candidates: Tuple[SudokuCandidate, ...] = ()
-                match candidate_type:
-                    case SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES: candidates = sudoku.candidates_0th_layer_naked_singles
-                    case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidates_0th_layer_hidden_singles
-                    case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidates_1st_layer_consensus
+                inference_succeeded: bool = False
+                if llm_candidate is not None:
+                    candidates: Tuple[SudokuCandidate, ...] = ()
+                    match candidate_type:
+                        case SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES: candidates = sudoku.candidates_0th_layer_naked_singles
+                        case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidates_0th_layer_hidden_singles
+                        case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidates_1st_layer_consensus
+                    inference_succeeded = llm_candidate.candidate in candidates
 
                 generated_inferences += 1
-                inference_succeeded: bool = llm_candidate.candidate in candidates
                 logger.info(f"{n}x{n} grid | {candidate_type.name}: sudoku_id={sudoku_model.id} succeeded={inference_succeeded} ({generated_inferences}/{request.target_count})")
                 SudokuInferenceRepository.create(
                     SudokuInferenceMapper.to_inference(
                         sudoku_id=sudoku_model.id,
                         succeeded=inference_succeeded,
-                        explanation=llm_candidate.explanation
+                        explanation=llm_candidate.explanation if llm_candidate is not None else None
                     )
                 )
