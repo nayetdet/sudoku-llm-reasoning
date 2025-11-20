@@ -29,7 +29,7 @@ class SudokuRepository:
             if grid is not None:
                 stmt = stmt.where(Sudoku.grid == grid)
             if inference_succeeded is not None:
-                stmt = stmt.where(Sudoku.inference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
+                stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
             if has_images is not None:
                 stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
             if page is not None and size is not None:
@@ -110,7 +110,7 @@ class SudokuRepository:
             if grid is not None:
                 stmt = stmt.where(Sudoku.grid == grid)
             if inference_succeeded is not None:
-                stmt = stmt.where(Sudoku.inference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
+                stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
             if has_images is not None:
                 stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
             return session.scalar(stmt)
