@@ -2,7 +2,7 @@ import json
 import re
 import textwrap
 import google.generativeai as genai
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from google.generativeai import GenerativeModel
 from pydantic import BaseModel
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
@@ -181,7 +181,7 @@ class SudokuInferenceAgent:
         genai.configure(api_key=llm_api_key)
         self.__llm: GenerativeModel = GenerativeModel(llm_model)
 
-    def solve(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> SudokuInferenceCandidate:
+    def solve(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> Optional[SudokuInferenceCandidate]:
         n: int = len(sudoku)
         prompt: str = textwrap.dedent(f"""
             ### Papel
@@ -312,9 +312,9 @@ class SudokuInferenceAgent:
         """)
 
         response: str = self.__llm.generate_content(prompt).text or ""
-        payload: Dict[str, Any] = self.__get_inference_candidate_payload(response, candidate_type)
-        if payload is None or "error" in payload:
-            raise SudokuInferenceAgentGenerationException(f"No inference found for {candidate_type.display_name}: {payload["error"]}")
+        payload: Dict[str, Any] = self.__get_inference_candidate_payload(response, candidate_type=candidate_type)
+        if "error" in payload:
+            return None
         return SudokuInferenceCandidate(**payload)
 
     @classmethod

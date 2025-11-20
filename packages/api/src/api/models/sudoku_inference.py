@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, Text, Boolean
 from sqlmodel import SQLModel, Field, Relationship
 
 class SudokuInference(SQLModel, table=True):
@@ -14,7 +14,7 @@ class SudokuInference(SQLModel, table=True):
         }
     )
     succeeded: bool = Field(sa_column=Column(Boolean, nullable=False))
-    explanation: str = Field(sa_column=Column(String, nullable=False))
+    explanation: Optional[str] = Field(sa_column=Column(Text, nullable=True))
     sudoku: "Sudoku" = Relationship(
         back_populates="inference",
         sa_relationship_kwargs={
