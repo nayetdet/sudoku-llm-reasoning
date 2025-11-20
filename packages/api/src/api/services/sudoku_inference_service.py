@@ -37,6 +37,7 @@ class SudokuInferenceService:
                     case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidates_0th_layer_hidden_singles
                     case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidates_1st_layer_consensus
 
+                generated_inferences += 1
                 inference_succeeded: bool = llm_candidate.candidate in candidates
                 logger.info(f"{n}x{n} grid | {candidate_type.name}: sudoku_id={sudoku_model.id} succeeded={inference_succeeded} ({generated_inferences}/{request.target_count})")
                 SudokuInferenceRepository.create(
@@ -46,5 +47,3 @@ class SudokuInferenceService:
                         explanation=llm_candidate.explanation
                     )
                 )
-
-                generated_inferences += 1
