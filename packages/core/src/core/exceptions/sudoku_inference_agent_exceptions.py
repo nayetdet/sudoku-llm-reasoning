@@ -1,0 +1,2 @@
+class SudokuInferenceAgentGenerationException(Exception):
+    pass

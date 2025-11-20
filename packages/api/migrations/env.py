@@ -19,6 +19,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 from api.models.sudoku import Sudoku # noqa: F401
 from api.models.sudoku_image import SudokuImage # noqa: F401
+from api.models.sudoku_inference import SudokuInference # noqa: F401
 
 target_metadata = SQLModel.metadata
 

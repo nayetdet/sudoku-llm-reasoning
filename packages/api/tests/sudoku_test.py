@@ -1,8 +1,8 @@
 from typing import List
-from api.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from api.mappers.sudoku_mapper import SudokuMapper
 from api.models.sudoku import Sudoku as SudokuModel
 from api.repositories.sudoku_repository import SudokuRepository
+from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from core.sudoku import Sudoku
 
 def test_naked_singles_sudoku() -> None:

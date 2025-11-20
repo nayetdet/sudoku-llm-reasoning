@@ -1,5 +1,4 @@
 from sqlalchemy import event
-from sqlalchemy.engine import Connection
 from sqlmodel import create_engine
 from api.config import Config
 

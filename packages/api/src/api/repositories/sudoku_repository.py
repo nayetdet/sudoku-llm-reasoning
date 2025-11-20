@@ -1,24 +1,35 @@
 import random
-from datetime import datetime
-from typing import List, Optional
-from sqlalchemy import null
-from sqlmodel import Session, select, func
+from typing import List, Optional, Union
+from sqlalchemy import Null
+from sqlmodel import Session, select, func, null
 from api.database import engine
 from api.models.sudoku import Sudoku
 from api.models.sudoku_image import SudokuImage
+from api.models.sudoku_inference import SudokuInference
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 
 class SudokuRepository:
     @classmethod
-    def get_all(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None, page: Optional[int] = None, size: Optional[int] = None) -> List[Sudoku]:
+    def get_all(
+            cls,
+            n: Optional[int] = None,
+            candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
+            grid: Optional[List[List[int]]] = None,
+            inference_succeeded: Union[Optional[bool], Null] = None,
+            has_images: Optional[bool] = None,
+            page: Optional[int] = None,
+            size: Optional[int] = None
+    ) -> List[Sudoku]:
         with Session(engine) as session:
-            stmt = select(Sudoku).outerjoin(SudokuImage).group_by(Sudoku.id)
+            stmt = select(Sudoku).outerjoin(SudokuInference).outerjoin(SudokuImage).distinct()
             if n is not None:
                 stmt = stmt.where(Sudoku.n == n)
             if candidate_type is not None:
                 stmt = stmt.where(Sudoku.candidate_type == candidate_type)
             if grid is not None:
                 stmt = stmt.where(Sudoku.grid == grid)
+            if inference_succeeded is not None:
+                stmt = stmt.where(Sudoku.inference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
             if has_images is not None:
                 stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
             if page is not None and size is not None:
@@ -32,38 +43,39 @@ class SudokuRepository:
             return session.exec(stmt).first()
 
     @classmethod
-    def get_random(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> Optional[Sudoku]:
-        entries: List[Sudoku] = cls.get_all(n=n, candidate_type=candidate_type, grid=grid, has_images=has_images)
+    def get_random(
+            cls,
+            n: Optional[int] = None,
+            candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
+            grid: Optional[List[List[int]]] = None,
+            inference_succeeded: Union[Optional[bool], Null] = None,
+            has_images: Optional[bool] = None
+    ) -> Optional[Sudoku]:
+        entries: List[Sudoku] = cls.get_all(
+            n=n,
+            candidate_type=candidate_type,
+            grid=grid,
+            inference_succeeded=inference_succeeded,
+            has_images=has_images
+        )
+
         if not entries:
             return None
         return random.choice(entries)
 
     @classmethod
-    def create(cls, sudoku_model: Sudoku) -> Optional[Sudoku]:
+    def create(cls, sudoku: Sudoku) -> Optional[Sudoku]:
         with Session(engine) as session:
             stmt = select(Sudoku).where(
-                Sudoku.n == sudoku_model.n,
-                Sudoku.candidate_type == sudoku_model.candidate_type,
-                Sudoku.grid == sudoku_model.grid
+                Sudoku.n == sudoku.n,
+                Sudoku.candidate_type == sudoku.candidate_type,
+                Sudoku.grid == sudoku.grid
             )
 
             existing = session.scalar(stmt)
             if existing:
                 return None
 
-            session.add(sudoku_model)
-            session.commit()
-            session.refresh(sudoku_model)
-            return sudoku_model
-
-    @classmethod
-    def update_inference_result(cls, sudoku_id: int, is_correct: bool) -> Optional[Sudoku]:
-        with Session(engine) as session:
-            sudoku = session.get(Sudoku, sudoku_id)
-            if sudoku is None:
-                return None
-
-            sudoku.inference_succeeded = is_correct
             session.add(sudoku)
             session.commit()
             session.refresh(sudoku)
@@ -81,15 +93,24 @@ class SudokuRepository:
             return True
 
     @classmethod
-    def count(cls, n: Optional[int] = None, candidate_type: Optional[SudokuSimplifiedCandidateType] = None, grid: Optional[List[List[int]]] = None, has_images: Optional[bool] = None) -> int:
+    def count(
+            cls,
+            n: Optional[int] = None,
+            candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
+            grid: Optional[List[List[int]]] = None,
+            inference_succeeded: Union[Optional[bool], Null] = None,
+            has_images: Optional[bool] = None
+    ) -> int:
         with Session(engine) as session:
-            stmt = select(func.count(Sudoku.id)).select_from(Sudoku).outerjoin(SudokuImage).group_by(Sudoku.id)
+            stmt = select(func.count(Sudoku.id)).select_from(Sudoku).outerjoin(SudokuInference).outerjoin(SudokuImage).distinct()
             if n is not None:
                 stmt = stmt.where(Sudoku.n == n)
             if candidate_type is not None:
                 stmt = stmt.where(Sudoku.candidate_type == candidate_type)
             if grid is not None:
                 stmt = stmt.where(Sudoku.grid == grid)
+            if inference_succeeded is not None:
+                stmt = stmt.where(Sudoku.inference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
             if has_images is not None:
                 stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
             return session.scalar(stmt)
