@@ -2,7 +2,7 @@ import json
 import re
 import textwrap
 import google.generativeai as genai
-from typing import Tuple, Dict, Optional, Any
+from typing import Tuple, Dict, Any
 from google.generativeai import GenerativeModel
 from pydantic import BaseModel
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
@@ -181,7 +181,7 @@ class SudokuInferenceAgent:
         genai.configure(api_key=llm_api_key)
         self.__llm: GenerativeModel = GenerativeModel(llm_model)
 
-    def solve(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> Optional[SudokuInferenceCandidate]:
+    def solve(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> SudokuInferenceCandidate:
         n: int = len(sudoku)
         prompt: str = textwrap.dedent(f"""
             ### Papel
@@ -314,18 +314,18 @@ class SudokuInferenceAgent:
         response: str = self.__llm.generate_content(prompt).text or ""
         payload: Dict[str, Any] = self.__get_inference_candidate_payload(response, candidate_type)
         if payload is None or "error" in payload:
-            return None
+            raise SudokuInferenceAgentGenerationException(f"No inference found for {candidate_type.display_name}: {payload["error"]}")
         return SudokuInferenceCandidate(**payload)
 
     @classmethod
-    def __get_inference_candidate_payload(cls, text: str, candidate_type: SudokuSimplifiedCandidateType) -> Optional[Dict[str, Any]]:
+    def __get_inference_candidate_payload(cls, text: str, candidate_type: SudokuSimplifiedCandidateType) -> Dict[str, Any]:
         if not text:
             raise SudokuInferenceAgentGenerationException("LLM returned an empty response")
 
         clean_text: str = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
         try: payload: Dict[str, Any] = json.loads(clean_text)
-        except json.JSONDecodeError:
-            return None
+        except json.JSONDecodeError as e:
+            raise SudokuInferenceAgentGenerationException(f"LLM return an invalid JSON: {e}")
 
         if "candidate_type" not in payload and "error" not in payload:
             payload["candidate_type"] = candidate_type.value
