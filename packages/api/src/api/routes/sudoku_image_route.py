@@ -1,8 +1,12 @@
 from fastapi import APIRouter, status
-from api.repositories.sudoku_image_repository import SudokuImageRepository
+from api.services.sudoku_image_service import SudokuImageService
 
 router = APIRouter()
 
+@router.get("/zip")
+def download_zip():
+    return SudokuImageService.download_zip()
+
 @router.delete("/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_by_id(image_id: int):
-    SudokuImageRepository.delete_by_id(image_id)
+    SudokuImageService.delete_by_id(image_id)
