@@ -1,3 +1,5 @@
-import streamlit as st
+from webui.components.tables.sudoku_inference_analytics_table_component import SudokuInferenceAnalyticsTableComponent
+from webui.components.tables.sudoku_table_component import SudokuTableComponent
 
-st.title("Sudoku LLM Reasoning: WebUI")
+SudokuInferenceAnalyticsTableComponent.render()
+SudokuTableComponent.render()
