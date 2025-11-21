@@ -13,3 +13,7 @@ def get_analytics():
 @router.post("/", status_code=status.HTTP_204_NO_CONTENT)
 def create(request: SudokuInferenceRequestSchema):
     SudokuInferenceService.create(request)
+
+@router.delete("/{inference_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_by_id(inference_id: int):
+    SudokuInferenceService.delete_by_id(inference_id)
