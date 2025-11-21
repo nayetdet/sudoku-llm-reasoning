@@ -2,6 +2,7 @@ import itertools
 from typing import List, Tuple, Optional
 from sqlmodel import null
 from api.deps.agent_instance import AgentInstance
+from api.exceptions.sudoku_inference_exceptions import SudokuInferenceNotFoundException
 from api.logger import logger
 from api.mappers.sudoku_inference_mapper import SudokuInferenceMapper
 from api.mappers.sudoku_mapper import SudokuMapper
@@ -77,3 +78,8 @@ class SudokuInferenceService:
                         explanation=llm_candidate.explanation if llm_candidate is not None else None
                     )
                 )
+
+    @classmethod
+    def delete_by_id(cls, inference_id: int) -> None:
+        if not SudokuInferenceRepository.delete_by_id(inference_id):
+            raise SudokuInferenceNotFoundException()
