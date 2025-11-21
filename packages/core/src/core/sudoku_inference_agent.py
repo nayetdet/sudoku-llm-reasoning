@@ -45,6 +45,12 @@ class SudokuInferenceAgent:
               - Lógica proposicional com foco em *depth-bounded reasoning*;
               - Princípios *single candidate principle* e *consensus principle*.
 
+            - Você deve se comportar como um **agente depth-bounded**:
+              - Diferencie com cuidado:
+                - raciocínios de **camada 0** (apenas informação atual);
+                - raciocínios de **camada 1** (um nível de informação virtual);
+              - Nunca use profundidade maior que a permitida pela técnica alvo.
+
             - Seu objetivo nesta chamada é **estritamente**:
               1. Analisar a grade de Sudoku fornecida.
               2. Procurar **exatamente UM** passo válido da técnica alvo:
@@ -118,12 +124,40 @@ class SudokuInferenceAgent:
             - Raciocínios que usam informação virtual estão em:
               - camadas de profundidade ≥ 1.
 
-            - Consequência importante:
-              - Técnicas da camada 0 (**Naked Singles** e **Hidden Singles**) usam
-                apenas informação atual (camada 0), sem suposições;
-              - Técnicas de consenso de primeira camada usam:
-                - ramos de profundidade 1 (informação virtual);
-                - dentro de cada ramo, apenas raciocínios de camada 0.
+            ## 2.3 Camada 0 vs camadas mais profundas (visão informacional)
+
+            - Em termos do Capítulo 1 (lógica proposicional depth-bounded):
+
+              - **Informação atual**:
+                - é a informação de que o agente realmente dispõe em prática;
+                - deve ser estável sob inferências "fáceis", de baixo custo.
+
+              - **Informação virtual**:
+                - é informação construída por suposições provisórias;
+                - não está presente na grade real;
+                - existe apenas dentro de ramos hipotéticos.
+
+            - Camada 0 (0-depth), no contexto de Sudoku:
+              - usa apenas:
+                - a grade real;
+                - os conjuntos de candidatos C_plain([i, j]);
+                - o *single candidate principle* aplicado à célula ou à unidade.
+              - Não abre ramos, não faz "caso 1 / caso 2 / ..." sobre células.
+
+            - Camadas ≥ 1:
+              - usam explicitamente ramos com informação virtual;
+              - dentro de cada ramo, você ainda raciocina **como se estivesse na camada 0**,
+                usando apenas Naked Singles e Hidden Singles;
+              - o custo cognitivo/computacional cresce com a profundidade da aninhagem
+                de suposições.
+
+            - Nesta tarefa:
+              - Naked Singles e Hidden Singles devem ser justificadas **apenas** com
+                informação atual (camada 0).
+              - Consensus de primeira camada deve usar:
+                - **uma camada de suposição** (profundidade 1);
+                - dentro de cada ramo, somente raciocínios de camada 0 (Naked + Hidden);
+                - **nunca** abra consensos adicionais dentro de um ramo já suposto.
 
             ============================================================
             # 3. Candidatos de 0ª camada: C_plain([i, j])
@@ -155,6 +189,11 @@ class SudokuInferenceAgent:
             > "Sabemos que uma certa disjunção é verdadeira.
             > Se todos os disjuntos, exceto um, são excluídos pelas
             > restrições disponíveis, então o disjunto restante deve ser verdadeiro."
+
+            - Do ponto de vista informacional (Capítulo 1):
+              - é o **princípio de consistência mais básico** da camada 0;
+              - justifica inferências "elementares" que não exigem informação virtual;
+              - é **analítico** em relação ao significado informacional dos conectivos.
 
             - Em Sudoku, isso aparece em dois formatos:
               1. **Naked Singles** (unicidade pela célula).
