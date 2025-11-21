@@ -15,8 +15,21 @@ from core.factories.sudoku_factory import SudokuFactory
 class SudokuService:
     @classmethod
     def get_all(cls, query: SudokuQuerySchema) -> PageSchema[SudokuResponseSchema]:
-        content: List[SudokuModel] = SudokuRepository.get_all(n=query.n, candidate_type=query.candidate_type, inference_succeeded=query.inference_succeeded, page=query.page, size=query.size)
-        total_elements: int = SudokuRepository.count(n=query.n, candidate_type=query.candidate_type, inference_succeeded=query.inference_succeeded)
+        content: List[SudokuModel] = SudokuRepository.get_all(
+            n=query.n,
+            candidate_type=query.candidate_type,
+            inference_succeeded=query.inference_succeeded,
+            page=query.page,
+            size=query.size
+        )
+
+        total_elements: int = SudokuRepository.count(
+            n=query.n,
+            candidate_type=query.candidate_type,
+            inference_succeeded=query.inference_succeeded,
+            inference_succeeded_nth_layer=query.inference_succeeded_nth_layer
+        )
+
         return PageSchema[SudokuResponseSchema](
             content=[SudokuMapper.to_sudoku_response_schema(x) for x in content],
             pageable=PageableSchema(

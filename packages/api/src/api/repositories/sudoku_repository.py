@@ -1,7 +1,7 @@
 import random
 from typing import List, Optional, Union
 from sqlalchemy import Null
-from sqlmodel import Session, select, func, null
+from sqlmodel import Session, select, func, col, null
 from api.database import engine
 from api.models.sudoku import Sudoku
 from api.models.sudoku_image import SudokuImage
@@ -10,30 +10,10 @@ from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidat
 
 class SudokuRepository:
     @classmethod
-    def get_all(
-            cls,
-            n: Optional[int] = None,
-            candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
-            grid: Optional[List[List[int]]] = None,
-            inference_succeeded: Union[Optional[bool], Null] = None,
-            has_images: Optional[bool] = None,
-            page: Optional[int] = None,
-            size: Optional[int] = None
-    ) -> List[Sudoku]:
+    def get_all(cls, **filters) -> List[Sudoku]:
         with Session(engine) as session:
             stmt = select(Sudoku).outerjoin(SudokuInference).outerjoin(SudokuImage).distinct()
-            if n is not None:
-                stmt = stmt.where(Sudoku.n == n)
-            if candidate_type is not None:
-                stmt = stmt.where(Sudoku.candidate_type == candidate_type)
-            if grid is not None:
-                stmt = stmt.where(Sudoku.grid == grid)
-            if inference_succeeded is not None:
-                stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
-            if has_images is not None:
-                stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
-            if page is not None and size is not None:
-                stmt = stmt.offset(page * size).limit(size)
+            stmt = cls.__filter(stmt, **filters)
             return list(session.exec(stmt).unique().all())
 
     @classmethod
@@ -43,22 +23,8 @@ class SudokuRepository:
             return session.exec(stmt).first()
 
     @classmethod
-    def get_random(
-            cls,
-            n: Optional[int] = None,
-            candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
-            grid: Optional[List[List[int]]] = None,
-            inference_succeeded: Union[Optional[bool], Null] = None,
-            has_images: Optional[bool] = None
-    ) -> Optional[Sudoku]:
-        entries: List[Sudoku] = cls.get_all(
-            n=n,
-            candidate_type=candidate_type,
-            grid=grid,
-            inference_succeeded=inference_succeeded,
-            has_images=has_images
-        )
-
+    def get_random(cls, **filters) -> Optional[Sudoku]:
+        entries: List[Sudoku] = cls.get_all(**filters)
         if not entries:
             return None
         return random.choice(entries)
@@ -93,24 +59,52 @@ class SudokuRepository:
             return True
 
     @classmethod
-    def count(
+    def count(cls, **filters) -> int:
+        with Session(engine) as session:
+            stmt = select(func.count(func.distinct(Sudoku.id))).select_from(Sudoku).outerjoin(SudokuInference).outerjoin(SudokuImage)
+            stmt = cls.__filter(stmt, **filters)
+            return session.scalar(stmt)
+
+    @classmethod
+    def get_distinct_ns(cls) -> List[int]:
+        with Session(engine) as session:
+            stmt = select(Sudoku.n).distinct().order_by(Sudoku.n)
+            return list(map(int, session.exec(stmt).all()))
+
+    @classmethod
+    def get_distinct_candidate_types(cls) -> List[SudokuSimplifiedCandidateType]:
+        with Session(engine) as session:
+            stmt = select(col(Sudoku.candidate_type)).distinct().order_by(col(Sudoku.candidate_type))
+            return list(session.exec(stmt).all())
+
+    @classmethod
+    def __filter(
             cls,
+            stmt,
             n: Optional[int] = None,
             candidate_type: Optional[SudokuSimplifiedCandidateType] = None,
             grid: Optional[List[List[int]]] = None,
             inference_succeeded: Union[Optional[bool], Null] = None,
-            has_images: Optional[bool] = None
-    ) -> int:
-        with Session(engine) as session:
-            stmt = select(func.count(Sudoku.id)).select_from(Sudoku).outerjoin(SudokuInference).outerjoin(SudokuImage).distinct()
-            if n is not None:
-                stmt = stmt.where(Sudoku.n == n)
-            if candidate_type is not None:
-                stmt = stmt.where(Sudoku.candidate_type == candidate_type)
-            if grid is not None:
-                stmt = stmt.where(Sudoku.grid == grid)
-            if inference_succeeded is not None:
-                stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
-            if has_images is not None:
-                stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
-            return session.scalar(stmt)
+            inference_succeeded_nth_layer: Union[Optional[bool], Null] = None,
+            inference_has_explanation: Optional[bool] = None,
+            has_images: Optional[bool] = None,
+            page: Optional[int] = None,
+            size: Optional[int] = None
+    ):
+        if n is not None:
+            stmt = stmt.where(Sudoku.n == n)
+        if candidate_type is not None:
+            stmt = stmt.where(Sudoku.candidate_type == candidate_type)
+        if grid is not None:
+            stmt = stmt.where(Sudoku.grid == grid)
+        if inference_succeeded is not None:
+            stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
+        if inference_succeeded_nth_layer is not None:
+            stmt = stmt.where(SudokuInference.succeeded_nth_layer == inference_succeeded_nth_layer if not isinstance(inference_succeeded_nth_layer, Null) else Sudoku.inference == null())
+        if inference_has_explanation is not None:
+            stmt = stmt.where(SudokuInference.explanation != null() if inference_has_explanation else SudokuInference.explanation == null())
+        if has_images is not None:
+            stmt = stmt.where(SudokuImage.id != null() if has_images else SudokuImage.id == null())
+        if page is not None and size is not None:
+            stmt = stmt.offset(page * size).limit(size)
+        return stmt
