@@ -6,3 +6,4 @@ class SudokuQuerySchema(BaseQuerySchema):
     n: Optional[int] = None
     candidate_type: Optional[SudokuSimplifiedCandidateType] = None
     inference_succeeded: Optional[bool] = None
+    inference_succeeded_nth_layer: Optional[bool] = None

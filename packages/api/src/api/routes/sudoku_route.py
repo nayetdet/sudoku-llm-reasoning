@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, status
 from api.schemas.queries.base_query_schema import PageSchema
 from api.schemas.queries.sudoku_query_schema import SudokuQuerySchema
-from api.schemas.requests.sudoku_inference_request_schema import SudokuInferenceRequestSchema
 from api.schemas.requests.sudoku_request_schema import SudokuRequestSchema
 from api.schemas.responses.sudoku_response_schema import SudokuResponseSchema
-from api.services.sudoku_inference_service import SudokuInferenceService
 from api.services.sudoku_service import SudokuService
 
 router = APIRouter()
@@ -20,10 +18,6 @@ def get_by_id(sudoku_id: int):
 @router.post("/", status_code=status.HTTP_204_NO_CONTENT)
 def create(request: SudokuRequestSchema):
     SudokuService.create(request)
-
-@router.post("/inferences", status_code=status.HTTP_204_NO_CONTENT)
-def create(request: SudokuInferenceRequestSchema):
-    SudokuInferenceService.create(request)
 
 @router.delete("/{sudoku_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_by_id(sudoku_id: int):
