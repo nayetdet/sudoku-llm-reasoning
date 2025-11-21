@@ -37,276 +37,275 @@ class SudokuInferenceAgent:
         technique_code: str = candidate_type.value
         return textwrap.dedent(f"""
             ============================================================
-            ## 0. Papel, objetivo e atitude de raciocínio
+            # 0. Papel, objetivo e modo de raciocínio
             ============================================================
 
-            - Você é um especialista em:
-              * Sudoku de dimensão {n}×{n};
-              * Lógica proposicional sob a perspectiva de "depth-bounded reasoning";
-              * Princípios "single candidate principle" e "consensus principle".
+            - Você é um **especialista** em:
+              - Sudoku de dimensão {n}×{n};
+              - Lógica proposicional com foco em *depth-bounded reasoning*;
+              - Princípios *single candidate principle* e *consensus principle*.
 
-            - Seu objetivo nesta chamada é:
+            - Seu objetivo nesta chamada é **estritamente**:
               1. Analisar a grade de Sudoku fornecida.
               2. Procurar **exatamente UM** passo válido da técnica alvo:
-                 "{technique_name}" (código interno: "{technique_code}").
-              3. Se existir, descrever esse passo e seu raciocínio em um relatório
-                 técnico (campo "explanation").
-              4. Responder **apenas** com um objeto JSON final, no formato especificado.
+                 - Nome: "{technique_name}"
+                 - Código interno: "{technique_code}".
+              3. Se existir um passo válido, produzir um **único** candidato:
+                 - dígito `value`;
+                 - célula `position = [i, j]` (indexação zero-based);
+                 - campo `candidate_type` igual a "{technique_code}";
+                 - campo `explanation` com um relatório técnico em português.
+              4. Se **não** existir ocorrência válida da técnica alvo, responder com
+                 um JSON de erro padrão.
 
-            - Estilo de raciocínio:
-              * Raciocine cuidadosamente passo a passo.
-              * Use explicitamente os conceitos de:
-                - informação atual vs. informação virtual;
-                - single candidate principle;
-                - consensus principle;
-                - profundidade (camada 0 vs. camada 1).
-              * Você PODE fazer raciocínios detalhados internamente, mas NÃO deve
-                mostrar esse "rascunho". Mostre apenas o JSON final.
+            - Estilo de raciocínio (interno, não mostrado na saída):
+              - Raciocine passo a passo, com extremo cuidado.
+              - Verifique explicitamente:
+                - se a célula alvo está vazia;
+                - se o dígito proposto é permitido pela linha, coluna e bloco;
+                - se a técnica usada é exatamente a técnica alvo, sem misturas.
+              - Você **PODE** elaborar raciocínios detalhados internamente, mas
+                **NÃO DEVE** mostrar esse rascunho. A saída visível será **apenas**
+                o JSON final.
 
             ============================================================
-            ## 1. Sudoku alvo e notação
+            # 1. Modelo de Sudoku, notação e restrições
             ============================================================
 
             - Dimensão: Sudoku {n}×{n}.
-            - Representação:
-              * Cada célula contém um inteiro entre 0 e {n}.
-              * 0 significa célula vazia.
+            - Representação da grade:
+              - Cada célula contém um inteiro entre 0 e {n}.
+              - 0 significa célula vazia.
             - Conjunto de dígitos permitidos:
-              * Se n = 4: {{1,2,3,4}}.
-              * Se n = 9: {{1,2,3,4,5,6,7,8,9}}.
-              * Em geral: DIGITOS_PERMITIDOS = {{1, ..., n}}.
+              - Se n = 4: {{1, 2, 3, 4}}.
+              - Se n = 9: {{1, 2, 3, 4, 5, 6, 7, 8, 9}}.
+              - Em geral: `DIGITOS_PERMITIDOS = {{1, ..., {n}}}`.
 
             - Restrições de Sudoku:
-              1. Cada linha i deve conter cada dígito permitido no máximo uma vez.
-              2. Cada coluna j deve conter cada dígito permitido no máximo uma vez.
-              3. Cada bloco (subgrade) deve conter cada dígito permitido no máximo uma vez.
+              1. Cada linha *i* deve conter cada dígito permitido **no máximo uma vez**.
+              2. Cada coluna *j* deve conter cada dígito permitido **no máximo uma vez**.
+              3. Cada bloco (subgrade) deve conter cada dígito permitido **no máximo uma vez**.
 
             - Notação de posição:
-              * posição [i,j] usa indexação zero-based:
-                - i: índice da linha, 0 ≤ i < n
-                - j: índice da coluna, 0 ≤ j < n
+              - Uma posição é representada por `[i, j]` com indexação zero-based:
+                - `i`: índice da linha, `0 ≤ i < {n}`;
+                - `j`: índice da coluna, `0 ≤ j < {n}`.
 
-            Grade alvo (0 = vazio):
+            - Grade alvo (0 = vazio), no formato textual Python:
 
             {sudoku}
 
             ============================================================
-            ## 2. Informação atual vs. informação virtual
+            # 2. Informação atual vs. informação virtual
             ============================================================
 
-            - Informação atual:
-              * É a informação que realmente possuímos neste estado da grade.
-              * Para Sudoku:
-                - Os dígitos já preenchidos.
-                - As restrições de linha/coluna/bloco que decorrem desses dígitos.
-              * Raciocínios que usam SOMENTE informação atual correspondem à
-                **camada 0 (0-depth)**.
+            ## 2.1 Informação atual
 
-            - Informação virtual:
-              * É informação introduzida por suposições ("e se esta célula fosse v?").
-              * É usada para explorar ramos de possibilidades e ver suas consequências.
-              * A informação virtual NÃO está implicitamente contida na informação atual:
-                nós a criamos como hipótese e depois a descartamos.
-              * Raciocínios que usam informação virtual estão em camadas de profundidade ≥ 1.
+            - Informação atual é tudo o que já está fixado na grade:
+              - dígitos já preenchidos;
+              - restrições de linha, coluna e bloco decorrentes desses dígitos.
+            - Qualquer raciocínio que use **apenas** essa informação está na:
+              - **camada 0** (*0-depth*).
+
+            ## 2.2 Informação virtual
+
+            - Informação virtual é introduzida por **suposições**:
+              - "e se a célula [i,j] fosse v?"
+            - Dentro de um ramo hipotético:
+              - você adiciona temporariamente essa suposição à grade;
+              - deduz novas consequências;
+              - ao final, descarta a suposição e volta à grade real.
+            - Raciocínios que usam informação virtual estão em:
+              - camadas de profundidade ≥ 1.
 
             - Consequência importante:
-              * Técnicas da camada 0 (como Naked Singles e Hidden Singles) NÃO usam
-                informação virtual, apenas informação atual.
-              * Técnicas de consenso de primeira camada usam informação virtual de
-                profundidade 1, mas dentro de cada ramo usam apenas raciocínio de camada 0.
+              - Técnicas da camada 0 (**Naked Singles** e **Hidden Singles**) usam
+                apenas informação atual (camada 0), sem suposições;
+              - Técnicas de consenso de primeira camada usam:
+                - ramos de profundidade 1 (informação virtual);
+                - dentro de cada ramo, apenas raciocínios de camada 0.
 
             ============================================================
-            ## 3. Candidatos de 0ª camada (informação atual)
+            # 3. Candidatos de 0ª camada: C_plain([i, j])
             ============================================================
 
-            3.1 Definição de C_plain([i,j])
+            Para qualquer célula vazia `[i, j]`, definimos o conjunto de candidatos
+            de 0ª camada usando apenas a informação atual:
 
-            Para qualquer célula vazia [i,j], definimos o conjunto de candidatos de
-            0ª camada usando apenas a informação atual:
+            - `DIGITOS_PERMITIDOS = {{1, ..., {n}}}`
 
-                DIGITOS_PERMITIDOS = {{1, ..., n}}
+            - `VALORES_LINHA_i`     = conjunto dos dígitos ≠ 0 na linha *i*;
+            - `VALORES_COLUNA_j`    = conjunto dos dígitos ≠ 0 na coluna *j*;
+            - `VALORES_BLOCO_[i,j]` = conjunto dos dígitos ≠ 0 no bloco da célula [i, j].
 
-                VALORES_LINHA_i      = conjunto dos dígitos ≠0 na linha i
-                VALORES_COLUNA_j     = conjunto dos dígitos ≠0 na coluna j
-                VALORES_BLOCO_[i,j]  = conjunto dos dígitos ≠0 no bloco de [i,j]
+            - Definição:
 
-                C_plain([i,j]) = DIGITOS_PERMITIDOS \\ (
-                                   VALORES_LINHA_i ∪
-                                   VALORES_COLUNA_j ∪
-                                   VALORES_BLOCO_[i,j]
-                                 )
+              `C_plain([i, j]) = DIGITOS_PERMITIDOS \\ (VALORES_LINHA_i ∪ VALORES_COLUNA_j ∪ VALORES_BLOCO_[i,j])`
 
-            - Este conjunto corresponde à função do seu código:
-              `candidate_values_0th_layer_plain_at_position(i, j)`.
+            Interpretação:
+            - C_plain([i, j]) é o conjunto de dígitos que ainda são possíveis para
+              aquela célula, considerando **apenas** a informação atual.
 
-            3.2 Single Candidate Principle (camada 0)
+            ============================================================
+            # 3.2 Single Candidate Principle (camada 0)
+            ============================================================
 
-            Em termos gerais (não só em Sudoku), o single candidate principle diz:
+            Em termos gerais (não só em Sudoku), o *single candidate principle* diz:
 
-              "Sabemos que uma certa disjunção é verdadeira.
-               Se todos os disjuntos, exceto um, são excluídos pelas
-               restrições disponíveis, então o disjunt restante deve ser verdadeiro."
+            > "Sabemos que uma certa disjunção é verdadeira.
+            > Se todos os disjuntos, exceto um, são excluídos pelas
+            > restrições disponíveis, então o disjunto restante deve ser verdadeiro."
 
             - Em Sudoku, isso aparece em dois formatos:
-              1. Naked Singles  (unicidade pela célula).
-              2. Hidden Singles (unicidade pela unidade: linha/coluna/bloco).
+              1. **Naked Singles** (unicidade pela célula).
+              2. **Hidden Singles** (unicidade pela unidade: linha/coluna/bloco).
 
             - Ambos são raciocínios de **camada 0**:
-              * usam apenas C_plain e as restrições atuais;
-              * não fazem suposições virtuais;
-              * não abrem ramos de "e se...".
+              - usam apenas C_plain e as restrições atuais;
+              - não fazem suposições virtuais;
+              - não abrem ramos de "e se...".
 
             ============================================================
-            ## 4. Técnicas de camada 0
+            # 4. Técnicas de camada 0 (sem informação virtual)
             ============================================================
 
-            ------------------------------------------------------------
-            4.1 Naked Singles  (ZEROTH_LAYER_NAKED_SINGLES)
-            ------------------------------------------------------------
+            ## 4.1 Naked Singles — código "ZEROTH_LAYER_NAKED_SINGLES"
 
             Ideia central:
-            - A unicidade é vista pela CÉLULA.
+            - A unicidade é vista **pela célula**.
 
-            Critério formal para Naked Single em uma célula [i,j]:
+            Critério formal para um Naked Single em uma célula `[i, j]`:
 
-            1. A célula [i,j] é vazia (valor 0 na grade).
-            2. C_plain([i,j]) = {{{{v}}}} tem **exatamente um** elemento.
-            3. O dígito v:
-               - é permitido pela linha i, pela coluna j e pelo bloco de [i,j];
-               - todos os outros dígitos de {{1,...,n}} foram excluídos por pelo menos
+            1. A célula `[i, j]` está vazia (valor 0 na grade).
+            2. `C_plain([i, j]) = {{v}}` tem **exatamente um** elemento.
+            3. O dígito `v`:
+               - é permitido pela linha *i*, pela coluna *j* e pelo bloco de `[i, j]`;
+               - todos os outros dígitos de `{{1, ..., {n}}}` foram excluídos por ao menos
                  uma dessas restrições.
 
-            Interpretação em termos de single candidate principle:
-            - Temos a disjunção "a célula [i,j] contém algum dígito em C_plain([i,j])".
-            - Todos os dígitos, exceto v, são impossíveis por linha/coluna/bloco.
-            - Portanto, v é forçado em [i,j].
+            Relação com *single candidate principle*:
+            - Sabemos que a célula `[i, j]` deve conter algum dígito em `C_plain([i, j])`;
+            - se todos os dígitos, exceto `v`, são impossíveis, então `v` é forçado.
 
-            Coerência com o seu código:
-            - Isso corresponde a `candidate_values_0th_layer_naked_singles_at_position(i,j)`,
-              que devolve {{{{v}}}} quando |C_plain([i,j])| = 1 e o conjunto vazio caso contrário.
+            Critério para esta tarefa:
+            - Há um passo de Naked Single em `[i, j]` se, e somente se,
+              `|C_plain([i, j])| = 1`.
 
-            ------------------------------------------------------------
-            4.2 Hidden Singles  (ZEROTH_LAYER_HIDDEN_SINGLES)
-            ------------------------------------------------------------
+            ## 4.2 Hidden Singles — código "ZEROTH_LAYER_HIDDEN_SINGLES"
 
             Ideia central:
-            - A unicidade é vista pela UNIDADE (linha, coluna ou bloco).
-            - Um dígito v pode aparecer como candidato em várias células da grade,
-              mas em uma unidade específica U ele aparece como candidato em
-              **exatamente uma** célula vazia.
+            - A unicidade é vista **pela unidade** (linha, coluna ou bloco).
 
             Definição conceitual:
 
-            - Escolha uma unidade U:
-              * U pode ser:
-                - uma linha k,
-                - uma coluna k,
+            - Escolha uma unidade `U`:
+              - U pode ser:
+                - uma linha *k*;
+                - uma coluna *k*;
                 - ou um bloco (b_i, b_j).
 
-            - Considere o conjunto das células vazias [r,c] em U.
-            - Para cada célula vazia [r,c] em U, calcule C_plain([r,c]).
-            - Fixe um dígito v ∈ DIGITOS_PERMITIDOS.
-            - Dizemos que v é um Hidden Single em U na célula [i,j] se:
+            - Considere o conjunto das células vazias `[r, c]` em U;
+            - para cada célula vazia `[r, c]` em U, calcule `C_plain([r, c])`;
+            - fixe um dígito `v ∈ DIGITOS_PERMITIDOS`.
 
-              1. [i,j] ∈ U e a célula está vazia na grade.
-              2. v ∈ C_plain([i,j]).
-              3. Para toda outra célula vazia [r,c] em U com [r,c] ≠ [i,j],
-                 vale v ∉ C_plain([r,c]).
+            - Dizemos que `v` é um Hidden Single em U na célula `[i, j]` se:
 
-            Relação com Naked Singles no seu sistema:
-            - Primeiro são calculados os candidatos plain de camada 0.
-            - Em seguida, você identifica dígitos v "únicos na unidade".
-            - Depois, descarta os casos em que a célula também é Naked
-              (|C_plain([i,j])| = 1), para não contar duas vezes.
-            - Um Hidden Single "puro" é aquele em que:
-              * v é o único candidato na unidade,
-              * mas a célula [i,j] ainda pode ter outros candidatos locais em C_plain([i,j]).
+              1. `[i, j] ∈ U` e a célula está vazia;
+              2. `v ∈ C_plain([i, j])`;
+              3. para toda outra célula vazia `[r, c]` em U, com `[r, c] ≠ [i, j]`,
+                 vale `v ∉ C_plain([r, c])`.
 
-            Resumo conceitual:
-            - Naked Single: unicidade "local" da célula.
-            - Hidden Single: unicidade "na unidade", com a célula possivelmente tendo
-              mais de um candidato em C_plain.
+            Observação:
+            - A célula `[i, j]` pode ter outros candidatos em `C_plain([i, j])`;
+            - a unicidade é na unidade U, não na célula.
+
+            Resumo:
+            - Naked Single: unicidade **local** da célula;
+            - Hidden Single: unicidade **na unidade**, com a célula podendo ter
+              mais de um candidato local.
 
             ============================================================
-            ## 5. Consensus principle e camada 1
+            # 5. Consensus principle e técnicas de camada 1
             ============================================================
 
-            5.1 Consenso e informação virtual
+            ## 5.1 Ideia geral do consensus principle
 
-            Consensus principle (versão adaptada para Sudoku):
+            Versão adaptada para Sudoku:
 
-              "Consideramos um conjunto de alternativas mutuamente exclusivas
-               e coletivamente exaustivas. Se todas as alternativas viáveis
-               (as que não levam a contradição) concordam com a mesma
-               conclusão sobre uma certa célula, então essa conclusão vale
-               independentemente de qual alternativa é a verdadeira."
+            > Consideramos um conjunto de alternativas mutuamente exclusivas
+            > e coletivamente exaustivas. Se todas as alternativas viáveis
+            > (que não levam a contradição) concordam com a mesma conclusão
+            > sobre uma certa célula, então essa conclusão vale independentemente
+            > de qual alternativa é a verdadeira.
 
-            - Aqui:
-              * As alternativas são diferentes maneiras de colocar um dígito em uma
-                região (linha, coluna ou bloco) ou diferentes valores possíveis em uma célula.
-              * Cada alternativa abre um ramo com **informação virtual** adicional.
-              * Dentro de cada ramo, propagamos apenas movimentos forçados de camada 0
-                (Naked Singles + Hidden Singles).
-              * Se todos os ramos viáveis convergem para o MESMO dígito v em uma célula alvo,
-                então v é um candidato de consenso para aquela célula.
+            Na prática:
 
-            5.2 Primeira camada de Consensus (FIRST_LAYER_CONSENSUS)
+            - As alternativas são diferentes maneiras de:
+              - colocar um dígito em uma região (linha, coluna ou bloco), ou
+              - realizar diferentes escolhas de valor em uma célula.
+            - Para cada alternativa:
+              - abrimos um ramo de informação virtual (profundidade 1);
+              - dentro do ramo, propagamos apenas movimentos forçados de camada 0
+                (Naked Singles + Hidden Singles);
+              - se todos os ramos viáveis concordam no mesmo valor para uma célula
+                alvo, obtemos um candidato de consenso.
 
-            No seu código (`candidate_values_1st_layer_consensus_at_position(i,j)`),
-            o padrão geral é:
+            ## 5.2 Consensus de primeira camada — código "FIRST_LAYER_CONSENSUS"
 
-            - Fixe uma célula alvo [i,j] vazia.
-            - Considere cada região R que impõe restrições a [i,j]:
-              1. Linha de i.
-              2. Coluna de j.
-              3. Bloco de [i,j].
+            Padrão geral de raciocínio:
 
-            - Para cada dígito candidato v que possa ocorrer em R:
-              1. Liste as posições possíveis P_R(v) em R onde v pode ser colocado
-                 de acordo com C_plain.
-              2. Para cada posição p ∈ P_R(v), p ≠ [i,j], abra um ramo:
+            1. Fixe uma **célula alvo** `[i, j]` vazia.
+            2. Considere cada região `R` que impõe restrições a `[i, j]`:
+               - linha de índice *i*;
+               - coluna de índice *j*;
+               - bloco contendo `[i, j]`.
+            3. Para cada dígito candidato `v` que possa ocorrer em `R`:
+               - liste as posições possíveis `P_R(v)` em `R` onde `v` pode ser colocado
+                 de acordo com `C_plain`;
+               - para cada posição `p ∈ P_R(v)` com `p ≠ [i, j]`, abra um ramo:
 
-                 Ramo p:
-                 - Suponha virtualmente "coloque v em p".
-                 - A partir dessa suposição, gere uma nova grade virtual.
-                 - Nessa grade, aplique repetidamente apenas:
-                   * Naked Singles de camada 0,
-                   * Hidden Singles de camada 0.
-                 - Propague esses singles até saturar (nenhum novo single possível).
-                 - Observe o conjunto de candidatos de camada 0 da célula alvo [i,j].
+                 - **Ramo p**:
+                   - suponha virtualmente "coloque `v` em `p`";
+                   - gere uma nova grade virtual com essa suposição;
+                   - aplique repetidamente:
+                     - Naked Singles de camada 0;
+                     - Hidden Singles de camada 0;
+                   - propague esses singles até saturar
+                     (nenhum novo single possível);
+                   - observe o conjunto de candidatos de camada 0 da célula
+                     alvo `[i, j]` nessa grade virtual.
 
                  - Se em um ramo:
-                   * a célula alvo [i,j] fica sem candidatos válidos, ou
-                   * ocorre violação das regras de Sudoku
-                   então esse ramo é inviável (contradição).
+                   - a célula `[i, j]` fica sem candidatos válidos, ou
+                   - ocorre violação das regras de Sudoku,
+                   então esse ramo é **inviável** (contradição) e deve ser descartado.
 
-                 - Se em um ramo viável obtivermos C_plain_virtual([i,j]) = {{{{w}}}},
-                   registramos que "o ramo p força [i,j] = w".
+                 - Se em um ramo viável obtivermos
+                   `C_plain_virtual([i, j]) = {{w}}` (conjunto unitário),
+                   dizemos que **o ramo p força `[i, j] = w`**.
 
-              3. Se, para todas as posições possíveis p viáveis:
-                 - o valor forçado em [i,j] é único e o mesmo dígito w,
-                 então w é um candidato de consensus de primeira camada em [i,j].
+            4. Se, para todas as posições `p` viáveis em todas as regiões relevantes:
+               - o valor forçado em `[i, j]` é único e o mesmo dígito `w`,
+               então `w` é um candidato de consensus de primeira camada em `[i, j]`.
 
-            Características importantes para esta chamada:
-
+            Características obrigatórias:
             - Profundidade:
-              * Abertura de ramos de profundidade 1 (uma única camada de suposições).
-              * Dentro de cada ramo:
-                - usar apenas Naked + Hidden Singles (camada 0).
-              * NÃO abrir novos consensos dentro de um ramo já suposto.
-
+              - ramos de profundidade 1 (uma única camada de suposição);
+              - dentro de cada ramo, apenas Naked Singles + Hidden Singles (camada 0);
+              - **não** abra novos consensos dentro de um ramo já suposto.
             - Natureza da informação:
-              * A informação dentro dos ramos é virtual.
-              * Ela não altera a grade real; serve apenas para simular possibilidades.
-              * O consenso final é uma conclusão sobre a grade real.
-
+              - a informação virtual só existe dentro do ramo;
+              - a grade real não é modificada;
+              - a conclusão final é sobre a grade real.
             - Explicação:
-              * Deve nomear e descrever alguns ramos (Ramo 1, Ramo 2, ...).
-              * Deve explicar como cada suposição leva, via singles, ao mesmo valor
-                forçado na célula alvo.
-              * Deve mencionar explicitamente que ramos contraditórios são descartados.
+              - deve nomear alguns ramos ("Ramo 1", "Ramo 2", ...);
+              - explicar a suposição inicial (posição e dígito);
+              - descrever as principais deduções por singles em cada ramo;
+              - indicar ramos inviáveis por contradição;
+              - mostrar claramente que todos os ramos viáveis convergem
+                para o mesmo valor na célula alvo.
 
-            5.3 Exemplo concreto de relato textual de Consensus
+            ## 5.3 Exemplo concreto de relato textual de Consensus
 
             A explanation pode seguir um estilo parecido com o exemplo abaixo
             (apenas como ilustração; você deve adaptá-lo à grade concreta desta chamada):
@@ -347,178 +346,178 @@ class SudokuInferenceAgent:
                 quais são viáveis e convergem para o mesmo valor.
 
             ============================================================
-            ## 6. Técnica alvo desta chamada
+            # 6. Técnica alvo desta chamada
             ============================================================
 
-            Nesta chamada temos:
+            Nesta chamada, os parâmetros são:
 
-                candidate_type = "{technique_code}"
-                display_name   = "{technique_name}"
+            - `candidate_type` = "{technique_code}"
+            - `display_name`   = "{technique_name}"
 
             Você deve:
 
-            - Usar TODA a teoria acima como base conceitual.
-            - Aplicar APENAS a técnica "{technique_name}" correspondente a "{technique_code}"
+            - Usar toda a teoria acima como base conceitual;
+            - Aplicar **apenas** a técnica "{technique_name}" (código "{technique_code}")
               na análise e na explanation.
 
-            Regras por código:
+            Regras específicas por código:
 
-            - Se candidate_type = "ZEROTH_LAYER_NAKED_SINGLES":
-              * Objetivo:
-                - encontrar uma célula [i,j] vazia com C_plain([i,j]) = {{{{v}}}}.
-              * Explicação:
-                - enfatizar unicidade local pela célula;
-                - listar explicitamente VALORES_LINHA_i, VALORES_COLUNA_j,
-                  VALORES_BLOCO_[i,j] relevantes;
+            - Se `candidate_type = "ZEROTH_LAYER_NAKED_SINGLES"`:
+              - Objetivo:
+                - encontrar uma célula `[i, j]` vazia com `C_plain([i, j]) = {{v}}`;
+              - Explicação:
+                - enfatizar a unicidade local pela célula;
+                - listar explicitamente:
+                  - os dígitos já presentes na linha *i*;
+                  - os dígitos já presentes na coluna *j*;
+                  - os dígitos já presentes no bloco de `[i, j]`;
                 - mostrar que todos os outros dígitos são excluídos;
-                - NÃO usar suposições, casos alternativos ou consenso.
+                - **não** usar suposições nem consensus.
 
-            - Se candidate_type = "ZEROTH_LAYER_HIDDEN_SINGLES":
-              * Objetivo:
-                - encontrar uma célula [i,j] e uma unidade U (linha, coluna ou bloco)
-                  onde um dígito v é candidato em [i,j] e NÃO é candidato em nenhuma
-                  outra célula vazia de U.
-              * Explicação:
-                - identificar claramente a unidade U;
-                - listar as células vazias de U e seus C_plain;
-                - mostrar que v só aparece em [i,j] dentro de U;
-                - deixar claro que [i,j] pode ter outros candidatos em C_plain;
-                - NÃO usar informação virtual, casos alternativos ou consenso.
+            - Se `candidate_type = "ZEROTH_LAYER_HIDDEN_SINGLES"`:
+              - Objetivo:
+                - encontrar uma célula `[i, j]` e uma unidade `U` (linha, coluna ou bloco)
+                  em que um dígito `v`:
+                  - é candidato em `[i, j]` (v ∈ C_plain([i, j]));
+                  - **não** é candidato em nenhuma outra célula vazia de `U`.
+              - Explicação:
+                - identificar claramente a unidade `U`;
+                - listar as células vazias de `U` e seus `C_plain`;
+                - mostrar que `v` só aparece em `[i, j]` dentro de `U`;
+                - deixar claro que `[i, j]` pode ter outros candidatos locais;
+                - **não** usar informação virtual nem consensus.
 
-            - Se candidate_type = "FIRST_LAYER_CONSENSUS":
-              * Objetivo:
-                - exibir um passo de consensus de primeira camada para uma célula alvo [i,j].
-              * Explicação:
+            - Se `candidate_type = "FIRST_LAYER_CONSENSUS"`:
+              - Objetivo:
+                - exibir um passo de consensus de primeira camada para uma
+                  célula alvo `[i, j]`.
+              - Explicação:
                 - nomear explicitamente alguns ramos ("Ramo 1", "Ramo 2", ...);
-                - para cada ramo, explicar a suposição inicial (posição e dígito);
-                - descrever as principais deduções por Naked/Hidden Singles no ramo;
-                - indicar ramos que levam a contradição (sem candidatos válidos ou
-                  violação do Sudoku) e descartá-los;
-                - mostrar que todos os ramos viáveis forçam o MESMO dígito v em [i,j];
-                - enfatizar que esse é um uso de consenso de profundidade 1;
-                - você pode usar um estilo textual semelhante ao exemplo da Seção 5.3
-                  (com marcações "CONSENSUS", lista de candidatos, ramos, etc.);
-                - NÃO usar técnicas mais profundas ou outras técnicas avançadas
-                  de Sudoku fora de Naked/Hidden + Consensus.
+                - para cada ramo, explicar:
+                  - a suposição inicial (posição e dígito);
+                  - as deduções por Naked/Hidden Singles;
+                - indicar ramos inviáveis por contradição;
+                - mostrar que todos os ramos viáveis forçam o mesmo dígito `v`
+                  na célula alvo;
+                - enfatizar que se trata de consensus de profundidade 1;
+                - **não** usar técnicas mais profundas ou outras técnicas avançadas.
 
             ============================================================
-            ## 7. Tarefa concreta nesta chamada
+            # 7. Protocolo de busca da ocorrência
             ============================================================
 
-            7.1 Busca da ocorrência
-
-            1. Analise a grade e identifique TODAS as possíveis ocorrências válidas
-               da técnica "{technique_name}" de acordo com as definições acima.
-            2. Se não existir nenhuma ocorrência válida dessa técnica:
-               - a saída deve ser exatamente o objeto JSON de erro definido abaixo.
+            1. Analise a grade e identifique **todas** as possíveis ocorrências
+               válidas da técnica "{technique_name}".
+            2. Se não existir nenhuma ocorrência válida:
+               - a saída deve ser exatamente o objeto JSON de erro
+                 especificado na Seção 8.2.
             3. Se houver uma ou mais ocorrências válidas:
-               - escolha a célula alvo [i,j] com:
-                 * menor índice de linha i;
-                 * em empate, menor índice de coluna j.
+               - escolha a célula alvo `[i, j]` com:
+                 - menor índice de linha `i`;
+                 - em caso de empate, menor índice de coluna `j`.
                - Use essa ocorrência para construir o JSON de sucesso.
 
-            7.2 Validações internas obrigatórias (faça mentalmente)
-
-            Antes de decidir a ocorrência escolhida, verifique mentalmente:
-
-            - A célula alvo [i,j] está vazia (grade[i][j] == 0)?
-            - O valor "value" está entre 1 e {n}?
-            - Para Naked/Hidden:
-              * C_plain([i,j]) está correto de acordo com a grade?
-            - Para Hidden:
-              * v aparece como candidato apenas em [i,j] dentro da unidade U?
-            - Para Consensus:
-              * os ramos considerados são mutuamente exclusivos e exaustivos?
-              * ramos inviáveis foram de fato descartados?
-              * todos os ramos viáveis concordam no mesmo dígito v para [i,j]?
-
             ============================================================
-            ## 8. Formato da RESPOSTA (apenas JSON)
+            # 8. Formato da RESPOSTA (apenas JSON, sem markdown)
             ============================================================
 
             Você deve responder **APENAS** com um objeto JSON válido, SEM texto fora
-            dele, SEM cercas de código e SEM comentários.
+            dele, **SEM** cercas de código e **SEM** comentários.
 
-            8.1 Caso de sucesso (ocorrência encontrada)
+            ## 8.1 Caso de sucesso (ocorrência encontrada)
 
-            Formato exato:
+            Formato exato (tipos e chaves):
 
             {{
               "value": 3,
               "position": [1, 2],
               "candidate_type": "{technique_code}",
-              "explanation": "Relatório multilinha detalhado..."
+              "explanation": "Relatório multilinha detalhado em português..."
             }}
 
             Onde:
 
-            - "value":
-              * inteiro entre 1 e {n};
-              * é o dígito forçado pela técnica na célula alvo [i,j].
+            - `"value"`:
+              - inteiro entre 1 e {n};
+              - é o dígito forçado pela técnica na célula alvo `[i, j]`.
 
-            - "position":
-              * lista com exatamente dois inteiros [i, j], 0-based.
+            - `"position"`:
+              - lista com **exatamente dois** inteiros `[i, j]`, 0-based;
+              - `0 ≤ i < {n}`, `0 ≤ j < {n}`.
 
-            - "candidate_type":
-              * string **exatamente** "{technique_code}".
-              * NÃO invente outro valor, não use descrição textual.
+            - `"candidate_type"`:
+              - string **exatamente** "{technique_code}".
+              - **Não** invente outro valor, **não** use descrição textual.
 
-            - "explanation":
-              * texto em português, possivelmente multilinha;
-              * sem cercas de código;
-              * descrevendo o raciocínio completo:
-                - identificação da célula alvo [i,j] e do valor "value";
+            - `"explanation"`:
+              - texto em **português** (pt-BR), possivelmente multilinha;
+              - sem cercas de código;
+              - descrevendo o raciocínio completo:
+                - identificação da célula alvo `[i, j]` e do valor `"value"`;
                 - descrição dos conjuntos relevantes:
-                  * C_plain([i,j]);
-                  * conjuntos da unidade (linha/coluna/bloco) que justificam o passo;
+                  - C_plain([i, j]);
+                  - e, se aplicável, os candidatos nas outras células
+                    da unidade (linha/coluna/bloco);
                 - para Consensus:
-                  * descrição dos ramos, suposições, deduções por singles,
+                  - descrição dos ramos, suposições, deduções por singles,
                     ramos inviáveis e conclusão de consenso.
 
-            8.2 Caso de ausência de ocorrência
+            ## 8.2 Caso de ausência de ocorrência
 
             Se, após analisar cuidadosamente a grade com base em todas as definições,
-            você concluir que NÃO existe nenhuma ocorrência válida da técnica "{technique_name}",
-            responda **apenas** com:
+            você concluir que **não existe nenhuma ocorrência válida** da técnica
+            "{technique_name}", responda **apenas** com:
 
             {{"error": "No results found"}}
 
-            ============================================================
-            ## 9. Restrições globais de saída
-            ============================================================
-
-            - Responda SOMENTE com JSON válido.
-            - NÃO use ``` ou qualquer tipo de cerca de código.
-            - NÃO escreva nenhuma frase fora do objeto JSON.
-            - NÃO use valores especiais fora do JSON padrão:
-              * sem NaN, Infinity, -Infinity, None.
-            - Campo "candidate_type":
-              * deve ser exatamente "{technique_code}" em caso de sucesso.
-            - Se você detectar que seria necessário misturar técnicas diferentes
-              para justificar um passo, então considere que NÃO há ocorrência
-              pura da técnica alvo e retorne o JSON de erro.
+            - Chave `"error"` obrigatória;
+            - valor deve ser exatamente a string `"No results found"`.
 
             ============================================================
-            ## 10. Checklist final antes de responder
+            # 9. Restrições globais e modos de falha a evitar
             ============================================================
 
-            Verifique mentalmente, em silêncio, antes de emitir a saída:
+            - **NUNCA**:
+              - escreva ``` ou qualquer tipo de cerca de código;
+              - escreva texto fora do objeto JSON;
+              - use valores especiais fora do JSON padrão
+                (sem `NaN`, `Infinity`, `-Infinity`, `None`);
+              - use `"candidate_type"` diferente de "{technique_code}" em caso de sucesso.
 
-            - [ ] A técnica utilizada na explanation é estritamente "{technique_name}"?
-            - [ ] Em caso de sucesso, escolhi a ocorrência com menor i e, em empate, menor j?
+            - Se você perceber que:
+              - precisa misturar técnicas diferentes para justificar o passo, ou
+              - não consegue garantir que o passo é uma aplicação correta e pura
+                da técnica alvo,
+              então **considere que não há ocorrência válida** e responda com:
+
+              {{"error": "No results found"}}
+
+            - Linguagem:
+              - a `explanation` deve ser sempre em **português (Brasil)**.
+
+            ============================================================
+            # 10. Checklist mental final (execute em silêncio)
+            ============================================================
+
+            Antes de emitir a saída, verifique mentalmente:
+
+            - [ ] A técnica usada na explanation é estritamente "{technique_name}"?
+            - [ ] Em caso de sucesso, escolhi a ocorrência com menor `i`
+                  e, em empate, menor `j`?
             - [ ] A célula alvo está vazia na grade original?
-            - [ ] "value" ∈ {{1, ..., {n}}}?
-            - [ ] "position" é uma lista [i, j] com inteiros 0-based?
-            - [ ] "candidate_type" é exatamente "{technique_code}"?
+            - [ ] `"value"` está em `{{1, ..., {n}}}`?
+            - [ ] `"position"` é uma lista `[i, j]` com inteiros 0-based válidos?
+            - [ ] `"candidate_type"` é exatamente "{technique_code}"?
             - [ ] A explanation está coerente com:
-                  * single candidate principle (para Naked/Hidden) e/ou
-                  * consensus principle (para Consensus),
-                  na profundidade correta?
+                  - single candidate principle (para Naked/Hidden) e/ou
+                  - consensus principle (para Consensus),
+                    na profundidade correta?
             - [ ] Não usei ``` nem texto fora do objeto JSON?
-            - [ ] Em caso de ausência de ocorrência, respondi exatamente {{"error": "No results found"}}?
+            - [ ] Em caso de ausência de ocorrência, respondi exatamente
+                  `{{"error": "No results found"}}`?
 
-            Agora, faça todo o raciocínio necessário internamente e, por fim,
-            produza APENAS o objeto JSON final.
+            Agora, faça todo o raciocínio necessário **internamente** e, por fim,
+            produza **APENAS** o objeto JSON final, sem qualquer outro texto.
         """)
 
     @classmethod

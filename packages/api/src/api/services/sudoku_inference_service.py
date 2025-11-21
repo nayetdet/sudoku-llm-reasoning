@@ -31,21 +31,24 @@ class SudokuInferenceService:
                     logger.error(f"{n}x{n} grid | {candidate_type.name}: LLM inference failed for sudoku_id={sudoku_model.id}")
                     continue
 
-                inference_succeeded: bool = False
+                inference_succeeded = inference_succeeded_nth_layer = False
                 if llm_candidate is not None:
                     candidates: Tuple[SudokuCandidate, ...] = ()
                     match candidate_type:
                         case SudokuSimplifiedCandidateType.ZEROTH_LAYER_NAKED_SINGLES: candidates = sudoku.candidates_0th_layer_naked_singles
                         case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidates_0th_layer_hidden_singles
                         case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidates_1st_layer_consensus
-                    inference_succeeded = llm_candidate.candidate in candidates
+                    inference_succeeded = inference_succeeded_nth_layer = llm_candidate.candidate in candidates
+                    if not inference_succeeded:
+                        inference_succeeded_nth_layer = llm_candidate.candidate in sudoku.candidates_nth_layer
 
                 generated_inferences += 1
-                logger.info(f"{n}x{n} grid | {candidate_type.name}: sudoku_id={sudoku_model.id} succeeded={inference_succeeded} ({generated_inferences}/{request.target_count})")
+                logger.info(f"{n}x{n} grid | {candidate_type.name}: sudoku_id={sudoku_model.id} succeeded={inference_succeeded} succeeded_nth_layer={inference_succeeded_nth_layer} ({generated_inferences}/{request.target_count})")
                 SudokuInferenceRepository.create(
                     SudokuInferenceMapper.to_inference(
                         sudoku_id=sudoku_model.id,
                         succeeded=inference_succeeded,
+                        succeeded_nth_layer=inference_succeeded_nth_layer,
                         explanation=llm_candidate.explanation if llm_candidate is not None else None
                     )
                 )

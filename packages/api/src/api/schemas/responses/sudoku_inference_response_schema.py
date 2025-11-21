@@ -4,4 +4,5 @@ from pydantic import BaseModel
 class SudokuInferenceResponseSchema(BaseModel):
     id: int
     succeeded: bool
+    succeeded_nth_layer: bool
     explanation: Optional[str]
