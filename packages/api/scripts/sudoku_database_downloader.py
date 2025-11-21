@@ -25,7 +25,7 @@ class SudokuDatabaseDownloader:
                 chunk_size: int = 65536 # 64 KB
                 total_size: int = int(response.headers.get("Content-Length", 0))
                 with tqdm(desc=f"Downloading {asset.name}", total=total_size, unit="B", unit_divisor=1024, unit_scale=True) as progress:
-                    with open(output_path / output_file, "wb") as file:
+                    with open(output_file, "wb") as file:
                         for chunk in response.iter_content(chunk_size=chunk_size):
                             if chunk:
                                 file.write(chunk)
