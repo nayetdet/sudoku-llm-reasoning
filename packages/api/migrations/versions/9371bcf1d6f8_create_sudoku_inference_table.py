@@ -1,8 +1,8 @@
 """create_sudoku_inference_table
 
-Revision ID: 935f67e6abed
+Revision ID: 9371bcf1d6f8
 Revises: 94ae4232f581
-Create Date: 2025-11-20 20:53:45.003884
+Create Date: 2025-11-21 01:29:29.690441
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '935f67e6abed'
+revision: str = '9371bcf1d6f8'
 down_revision: Union[str, Sequence[str], None] = '94ae4232f581'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,6 +25,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sudoku_id', sa.Integer(), nullable=False),
     sa.Column('succeeded', sa.Boolean(), nullable=False),
+    sa.Column('succeeded_nth_layer', sa.Boolean(), nullable=False),
     sa.Column('explanation', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['sudoku_id'], ['sudoku.id'], ),
     sa.PrimaryKeyConstraint('id')
