@@ -1,10 +1,9 @@
-import html
 from typing import Dict, List, Tuple
 import streamlit as st
-import streamlit.components.v1 as components
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_service import SudokuService
+from webui.components.images.sudoku_image_component import SudokuImageComponent
 
 class SudokuImageGalleryComponent:
     PAGE_SIZE: int = 6
@@ -25,12 +24,12 @@ class SudokuImageGalleryComponent:
 
         cls.__render_filters()
 
-        total_sudokus, sudokus = cls.__load_sudokus()
+        total_sudokus, sudokus, page_size = cls.__load_sudokus()
         images: List[Dict[str, str]] = cls.__flatten_images(sudokus)
 
         if not images:
             st.info("Nenhuma imagem encontrada com os filtros atuais. Ajuste os filtros ou navegue para outras páginas.")
-            cls.__render_page_navigation(total_sudokus)
+            cls.__render_page_navigation(total_sudokus, page_size)
             return
 
         if st.session_state.gallery_image_index >= len(images):
@@ -38,17 +37,21 @@ class SudokuImageGalleryComponent:
 
         cls.__render_image_navigation(len(images))
         cls.__render_viewer(images[st.session_state.gallery_image_index])
-        cls.__render_page_navigation(total_sudokus)
+        cls.__render_page_navigation(total_sudokus, page_size)
 
     @classmethod
     def __render_filters(cls) -> None:
         with st.expander("Filtros", expanded=True):
             with st.form("gallery_filters_form"):
-                n_raw: str = st.text_input(
-                    "Filtrar por N",
-                    value=str(st.session_state.gallery_filters.get("n") or ""),
-                    placeholder="Ex.: 9"
-                )
+                filters_cols = st.columns([1, 1])
+
+                with filters_cols[0]:
+                    n_raw: str = st.text_input(
+                        "Filtrar por N",
+                        value=str(st.session_state.gallery_filters.get("n") or ""),
+                        placeholder="Ex.: 9",
+                        help="Use um inteiro positivo para buscar um tamanho específico."
+                    )
 
                 candidate_options: List = [None] + list(SudokuSimplifiedCandidateType)
                 current_candidate_value: str = st.session_state.gallery_filters.get("candidate_type")
@@ -57,16 +60,26 @@ class SudokuImageGalleryComponent:
                     None
                 )
 
-                candidate = st.selectbox(
-                    "Candidate Type",
-                    options=candidate_options,
-                    format_func=lambda opt: opt.display_name if isinstance(opt, SudokuSimplifiedCandidateType) else "Todos",
-                    index=candidate_options.index(default_candidate) if default_candidate in candidate_options else 0
-                )
+                with filters_cols[1]:
+                    candidate = st.selectbox(
+                        "Tipo de candidato",
+                        options=candidate_options,
+                        format_func=lambda opt: opt.display_name if isinstance(opt, SudokuSimplifiedCandidateType) else "Todos",
+                        index=candidate_options.index(default_candidate) if default_candidate in candidate_options else 0,
+                        help="Filtra pelos tipos simplificados de candidatos disponíveis."
+                    )
 
-                submitted: bool = st.form_submit_button("Aplicar filtros")
+                button_cols = st.columns([1, 1])
+                apply_filters: bool = button_cols[0].form_submit_button("Aplicar filtros", use_container_width=True)
+                clear_filters: bool = button_cols[1].form_submit_button("Limpar", use_container_width=True, type="secondary")
 
-            if submitted:
+            if clear_filters:
+                st.session_state.gallery_filters = {"n": None, "candidate_type": None}
+                st.session_state.gallery_page = 0
+                st.session_state.gallery_image_index = 0
+                st.rerun()
+
+            if apply_filters:
                 n_value = None
                 if n_raw.strip():
                     try:
@@ -86,7 +99,7 @@ class SudokuImageGalleryComponent:
                 st.rerun()
 
     @classmethod
-    def __load_sudokus(cls) -> Tuple[int, List[SudokuSchema]]:
+    def __load_sudokus(cls) -> Tuple[int, List[SudokuSchema], int]:
         filters: Dict[str, object] = {
             "page": st.session_state.gallery_page,
             "size": cls.PAGE_SIZE
@@ -98,7 +111,16 @@ class SudokuImageGalleryComponent:
         if st.session_state.gallery_filters.get("candidate_type"):
             filters["candidate_type"] = st.session_state.gallery_filters["candidate_type"]
 
-        return SudokuService.get_all(**filters)
+        total_sudokus, sudokus = SudokuService.get_all(**filters)
+        page_size_used: int = filters["size"]
+
+        total_pages: int = max((total_sudokus + page_size_used - 1) // page_size_used, 1)
+        if st.session_state.gallery_page >= total_pages:
+            st.session_state.gallery_page = total_pages - 1
+            filters["page"] = st.session_state.gallery_page
+            total_sudokus, sudokus = SudokuService.get_all(**filters)
+
+        return total_sudokus, sudokus, page_size_used
 
     @classmethod
     def __flatten_images(cls, sudokus: List[SudokuSchema]) -> List[Dict[str, str]]:
@@ -139,8 +161,8 @@ class SudokuImageGalleryComponent:
                 st.rerun()
 
     @classmethod
-    def __render_page_navigation(cls, total_sudokus: int) -> None:
-        total_pages: int = (total_sudokus + cls.PAGE_SIZE - 1) // cls.PAGE_SIZE
+    def __render_page_navigation(cls, total_sudokus: int, page_size: int) -> None:
+        total_pages: int = (total_sudokus + page_size - 1) // page_size
         if total_pages == 0:
             total_pages = 1
 
@@ -168,68 +190,6 @@ class SudokuImageGalleryComponent:
     def __render_viewer(cls, image: Dict[str, str]) -> None:
         metadata_col, _ = st.columns([3, 2])
         with metadata_col:
-            st.write(f"Sudoku ID: {image['sudoku_id']} | N: {image['n']} | Candidate: {image['candidate_type']} | Imagem {image['position']}")
+            st.write(f"Sudoku ID: {image['sudoku_id']} | N: {image['n']} | Tipo de candidato: {image['candidate_type']} | Imagem {image['position']}")
 
-        image_src: str = html.escape(image["src"])
-        viewer_html: str = """
-            <div id="sudoku-viewer" style="position: relative; width: 100%; height: 70vh; border-radius: 12px; overflow: hidden; border: 1px solid #444; background: radial-gradient(circle at 25% 20%, #1b2330, #0f1115 55%);">
-              <div id="sudoku-viewer-surface" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: grab;">
-                <img id="sudoku-viewer-img" src="__SRC__" alt="Sudoku image" style="max-width: none; max-height: none; user-select: none; pointer-events: none; transform: translate(0px, 0px) scale(1);" draggable="false" />
-              </div>
-            </div>
-            <script>
-            (function() {
-              const surface = document.getElementById('sudoku-viewer-surface');
-              const img = document.getElementById('sudoku-viewer-img');
-              let scale = 1;
-              let originX = 0;
-              let originY = 0;
-              let isPanning = false;
-              let startX = 0;
-              let startY = 0;
-              const minScale = 0.4;
-              const maxScale = 6;
-            
-              const updateTransform = () => {
-                img.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
-              };
-            
-              surface.addEventListener('wheel', (event) => {
-                event.preventDefault();
-                const delta = event.deltaY < 0 ? 0.1 : -0.1;
-                scale = Math.min(maxScale, Math.max(minScale, scale + delta));
-                updateTransform();
-              });
-            
-              surface.addEventListener('mousedown', (event) => {
-                isPanning = true;
-                startX = event.clientX - originX;
-                startY = event.clientY - originY;
-                surface.style.cursor = 'grabbing';
-              });
-            
-              window.addEventListener('mouseup', () => {
-                isPanning = false;
-                surface.style.cursor = 'grab';
-              });
-            
-              window.addEventListener('mousemove', (event) => {
-                if (!isPanning) return;
-                originX = event.clientX - startX;
-                originY = event.clientY - startY;
-                updateTransform();
-              });
-            
-              surface.addEventListener('dblclick', () => {
-                scale = 1;
-                originX = 0;
-                originY = 0;
-                updateTransform();
-              });
-            
-              updateTransform();
-            })();
-            </script>
-            """
-
-        components.html(viewer_html.replace("__SRC__", image_src), height=720)
+        SudokuImageComponent.render(image)
