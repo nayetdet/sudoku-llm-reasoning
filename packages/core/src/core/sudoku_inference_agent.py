@@ -26,7 +26,8 @@ class SudokuInferenceAgent:
 
     def solve(self, sudoku: Sudoku, candidate_type: SudokuSimplifiedCandidateType) -> Optional[SudokuInferenceCandidate]:
         prompt: str = self.__get_prompt(sudoku, candidate_type)
-        payload: Dict[str, Any] = self.__get_inference_candidate_payload(text=self.__llm.generate_content(prompt).text or "", candidate_type=candidate_type)
+        response_text: str = self.__llm.generate_content(prompt).text or ""
+        payload: Dict[str, Any] = self.__get_inference_candidate_payload(text=response_text, candidate_type=candidate_type)
         return SudokuInferenceCandidate(**payload) if "error" not in payload else None
 
     @classmethod
@@ -300,10 +301,50 @@ class SudokuInferenceAgent:
               * O consenso final é uma conclusão sobre a grade real.
 
             - Explicação:
-              * Deve nomear e descrever alguns ramos (Ramo A, Ramo B, ...).
+              * Deve nomear e descrever alguns ramos (Ramo 1, Ramo 2, ...).
               * Deve explicar como cada suposição leva, via singles, ao mesmo valor
                 forçado na célula alvo.
               * Deve mencionar explicitamente que ramos contraditórios são descartados.
+
+            5.3 Exemplo concreto de relato textual de Consensus
+
+            A explanation pode seguir um estilo parecido com o exemplo abaixo
+            (apenas como ilustração; você deve adaptá-lo à grade concreta desta chamada):
+
+                Sudoku: Sudoku(((0, 1, 0, 0), (2, 0, 0, 1), (0, 0, 4, 0), (0, 3, 0, 0)))
+
+                === [CONSENSUS] Analisando célula (0, 0)
+                === [CONSENSUS] Região 0 com posições: [(0, 0), (0, 1), (0, 2), (0, 3)]
+                - Célula (0, 0): candidatos plain = [3, 4]
+                - Célula (0, 2): candidatos plain = [2, 3]
+                - Célula (0, 3): candidatos plain = [2, 3, 4]
+
+                [CANDIDATO 4] posições possíveis na região: [(0, 0), (0, 3)]
+                > Assumindo 4 em (0, 3) e propagando Naked/Hidden Singles...
+                - Dedução single: (0, 2) = 2
+                - Dedução single: (1, 1) = 4
+                - Dedução single: (1, 2) = 3
+                - Dedução single: (2, 0) = 1
+                - Dedução single: (2, 1) = 2
+                - Dedução single: (2, 3) = 3
+                - Dedução single: (3, 0) = 4
+                - Dedução single: (3, 2) = 1
+                - Dedução single: (3, 3) = 2
+                Consequências da suposição 4 em (0, 3): [...]
+                Candidatos em (0, 0) após suposição: [3]
+                >>> Supondo 4 em (0, 3) força (0, 0) = 3
+
+                (Outros ramos análogos, em diferentes regiões/unidades,
+                 também forçando (0, 0) = 3.)
+
+                === [CONSENSUS] Resultado em (0, 0): candidatos finais = [3]
+                Conclusão final: em todos os ramos viáveis, obtemos (0, 0) = 3.
+
+            - Na explanation final:
+              * adapte esse formato à grade e à célula alvo reais;
+              * nomeie claramente as regiões/unidades usadas;
+              * deixe explícito quais ramos são descartados por contradição e
+                quais são viáveis e convergem para o mesmo valor.
 
             ============================================================
             ## 6. Técnica alvo desta chamada
@@ -355,6 +396,8 @@ class SudokuInferenceAgent:
                   violação do Sudoku) e descartá-los;
                 - mostrar que todos os ramos viáveis forçam o MESMO dígito v em [i,j];
                 - enfatizar que esse é um uso de consenso de profundidade 1;
+                - você pode usar um estilo textual semelhante ao exemplo da Seção 5.3
+                  (com marcações "CONSENSUS", lista de candidatos, ramos, etc.);
                 - NÃO usar técnicas mais profundas ou outras técnicas avançadas
                   de Sudoku fora de Naked/Hidden + Consensus.
 
