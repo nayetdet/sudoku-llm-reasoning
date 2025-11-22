@@ -1,11 +1,11 @@
 import streamlit as st
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from webui.schemas.sudoku_image_schema import SudokuImageSchema
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_image_service import SudokuImageService
 from webui.services.sudoku_service import SudokuService
-from webui.components.images.sudoku_image_component import SudokuImageComponent
+from webui.components.images.image_component import ImageComponent, Image
 
 class SudokuImageGalleryComponent:
     @classmethod
@@ -65,7 +65,9 @@ class SudokuImageGalleryComponent:
             st.warning("No images for this sudoku.")
             return
 
-        SudokuImageComponent.render(images, height=500)
+        ImageComponent.render(images=[Image(content_base64=image.content_base64, mime=image.mime) for image in images], height=500)
+        st.divider()
+
         col_previous, col_next = st.columns(2)
         with col_previous:
             if st.button("⬅ Previous Sudoku", use_container_width=True):
