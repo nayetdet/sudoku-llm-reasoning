@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Enum, JSON, Boolean, DateTime
+from sqlalchemy import Column, Enum, JSON
 from api.models.sudoku_image import SudokuImage
 from api.models.sudoku_inference import SudokuInference
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType

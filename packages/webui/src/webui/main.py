@@ -1,16 +1,17 @@
 import streamlit as st
-
 from webui.components.images.sudoku_image_gallery_component import SudokuImageGalleryComponent
 from webui.components.tables.sudoku_inference_analytics_table_component import SudokuInferenceAnalyticsTableComponent
 from webui.components.tables.sudoku_table_component import SudokuTableComponent
 
-tabs = st.tabs(["Galeria de Imagens", "Análises de Inferência", "Tabela de Sudokus"])
+st.set_page_config(page_title="Sudoku LLM Reasoning")
+st.title("Sudoku LLM Reasoning: WebUI")
+gallery_tab, analytics_tab, sudoku_tab = st.tabs(["Image Gallery", "Inference Analytics", "Sudoku Table"])
 
-with tabs[0]:
+with gallery_tab:
     SudokuImageGalleryComponent.render()
 
-with tabs[1]:
+with analytics_tab:
     SudokuInferenceAnalyticsTableComponent.render()
 
-with tabs[2]:
+with sudoku_tab:
     SudokuTableComponent.render()

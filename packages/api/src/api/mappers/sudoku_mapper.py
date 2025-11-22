@@ -30,9 +30,5 @@ class SudokuMapper:
             n=sudoku_model.n,
             candidate_type=sudoku_model.candidate_type,
             grid=sudoku_model.grid,
-            inference=SudokuInferenceMapper.to_inference_response_schema(sudoku_model.inference) if sudoku_model.inference else None,
-            images=[
-                SudokuImageMapper.to_image_response_schema(image)
-                for image in (sudoku_model.images or [])
-            ]
+            inference=SudokuInferenceMapper.to_inference_response_schema(sudoku_model.inference) if sudoku_model.inference else None
         )
