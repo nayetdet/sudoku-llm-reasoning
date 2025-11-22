@@ -7,7 +7,9 @@ authors = [
     { name = "nayetdet", email = "jpmoreiracampos21@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "cachetools>=6.2.1",
+]
 
 [tool.uv.workspace]
 members = [
