@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 from typing import List, Optional
 from webui.schemas.sudoku_image_schema import SudokuImageSchema
 
-
 class SudokuImageComponent:
     @classmethod
     def render(cls, images: List[SudokuImageSchema], height: Optional[int] = None) -> None:
@@ -16,29 +15,20 @@ class SudokuImageComponent:
                 html, body {{
                     margin: 0;
                     padding: 0;
-                    background: transparent;
                     overflow: hidden;
                     width: 100%;
                     height: 100%;
-                }}
-
-                :host, .main, .block-container {{
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    width: 100% !important;
-                    max-width: none !important;
                 }}
 
                 .image-viewer {{
                     position: relative;
                     width: 100%;
                     height: 100%;
-                    min-height: 320px;
                     border-radius: 12px;
                     overflow: hidden;
                     border: 1px solid #333;
                     background: radial-gradient(circle at 25% 20%, #1a1f29, #0e1013 60%);
-                    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+                    box-shadow: 0 8px 28px rgba(0,0,0,0.4);
                 }}
 
                 .image-viewer__surface {{
@@ -49,6 +39,7 @@ class SudokuImageComponent:
                     justify-content: center;
                     cursor: grab;
                     background-color: #0e1013;
+                    overflow: hidden;
                 }}
 
                 .image-viewer__img {{
@@ -56,8 +47,8 @@ class SudokuImageComponent:
                     max-height: 100%;
                     object-fit: contain;
                     user-select: none;
-                    pointer-events: none;
-                    transition: transform 120ms ease-out;
+                    pointer-events: auto;
+                    transition: transform 100ms ease-out;
                     will-change: transform;
                 }}
 
@@ -74,7 +65,7 @@ class SudokuImageComponent:
                     font-size: 22px;
                     cursor: pointer;
                     opacity: 0.6;
-                    transition: opacity 0.2s ease;
+                    transition: opacity 0.2s ease, background 0.2s ease;
                     z-index: 10;
                 }}
 
@@ -83,12 +74,12 @@ class SudokuImageComponent:
                     background: rgba(0,0,0,0.6);
                 }}
 
-                .image-viewer__nav--left {{
-                    left: 12px; 
+                .image-viewer__nav--left {{ 
+                    left: 12px;
                 }}
 
                 .image-viewer__nav--right {{
-                    right: 12px; 
+                    right: 12px;
                 }}
 
                 .image-viewer__indicator {{
@@ -106,32 +97,26 @@ class SudokuImageComponent:
             </style>
 
             <div class="image-viewer" id="viewer">
-                <div class="image-viewer__surface" id="image-viewer-surface">
-                    <img class="image-viewer__img" id="image-viewer-img" src="" alt="Image" draggable="false"/>
+                <div class="image-viewer__surface" id="surface">
+                    <img id="img" class="image-viewer__img" src="" draggable="false"/>
                 </div>
 
                 <button class="image-viewer__nav image-viewer__nav--left" id="btn-prev">⟨</button>
                 <button class="image-viewer__nav image-viewer__nav--right" id="btn-next">⟩</button>
-                <div class="image-viewer__indicator" id="image-indicator">1 / 1</div>
+                <div class="image-viewer__indicator" id="indicator">1 / 1</div>
             </div>
 
             <script>
             (() => {{
                 const images = {js_images};
-                const img = document.getElementById('image-viewer-img');
-                const indicator = document.getElementById('image-indicator');
-                const surface = document.getElementById('image-viewer-surface');
+                const img = document.getElementById("img");
+                const surface = document.getElementById("surface");
+                const indicator = document.getElementById("indicator");
+
                 let current = 0;
                 let scale = 1, originX = 0, originY = 0;
                 let isPanning = false, startX = 0, startY = 0;
                 const MIN_SCALE = 0.5, MAX_SCALE = 6;
-
-                const loadImage = (index) => {{
-                    const image = images[index];
-                    img.src = image.src;
-                    indicator.textContent = `${{index + 1}} / ${{images.length}}`;
-                    resetView();
-                }};
 
                 const updateTransform = () => {{
                     img.style.transform = `translate(${{originX}}px, ${{originY}}px) scale(${{scale}})`;
@@ -143,53 +128,55 @@ class SudokuImageComponent:
                     updateTransform();
                 }};
 
-                surface.addEventListener('wheel', (e) => {{
+                const loadImage = (index) => {{
+                    img.src = images[index].src;
+                    indicator.textContent = `${{index + 1}} / ${{images.length}}`;
+                    resetView();
+                }};
+
+                surface.addEventListener("wheel", (e) => {{
                     e.preventDefault();
-                    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * zoom));
+                    const rect = surface.getBoundingClientRect();
+                    const offsetX = e.clientX - rect.left - rect.width / 2;
+                    const offsetY = e.clientY - rect.top - rect.height / 2;
+                    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * zoomFactor));
+                    originX -= offsetX * (newScale / scale - 1);
+                    originY -= offsetY * (newScale / scale - 1);
+                    scale = newScale;
                     updateTransform();
                 }}, {{ passive: false }});
 
-                surface.addEventListener('mousedown', (e) => {{
+                surface.addEventListener("mousedown", (e) => {{
+                    if (e.button !== 0) return;
                     isPanning = true;
                     startX = e.clientX - originX;
                     startY = e.clientY - originY;
-                    surface.style.cursor = 'grabbing';
+                    surface.style.cursor = "grabbing";
                 }});
 
-                window.addEventListener('mouseup', () => {{
+                window.addEventListener("mouseup", () => {{
                     isPanning = false;
-                    surface.style.cursor = 'grab';
+                    surface.style.cursor = "grab";
                 }});
 
-                window.addEventListener('mousemove', (e) => {{
+                window.addEventListener("mousemove", (e) => {{
                     if (!isPanning) return;
                     originX = e.clientX - startX;
                     originY = e.clientY - startY;
                     updateTransform();
                 }});
 
-                surface.addEventListener('dblclick', resetView);
-                window.addEventListener('resize', resetView);
-
-                document.getElementById('btn-prev').onclick = () => {{
+                surface.addEventListener("dblclick", resetView);
+                document.getElementById("btn-prev").onclick = () => {{
                     current = (current - 1 + images.length) % images.length;
                     loadImage(current);
                 }};
 
-                document.getElementById('btn-next').onclick = () => {{
+                document.getElementById("btn-next").onclick = () => {{
                     current = (current + 1) % images.length;
                     loadImage(current);
                 }};
-
-                const autoResize = {str(height is None).lower()};
-                if (autoResize) {{
-                    const ro = new ResizeObserver(() => {{
-                        const h = document.getElementById('viewer').scrollHeight + 8;
-                        window.parent.postMessage({{ "type": "streamlit:setFrameHeight", "height": h }}, "*");
-                    }});
-                    ro.observe(document.body);
-                }}
 
                 loadImage(current);
             }})();
