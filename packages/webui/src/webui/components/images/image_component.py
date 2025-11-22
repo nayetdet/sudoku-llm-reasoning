@@ -1,11 +1,16 @@
 import textwrap
 import streamlit.components.v1 as components
+from dataclasses import dataclass
 from typing import List, Optional
-from webui.schemas.sudoku_image_schema import SudokuImageSchema
 
-class SudokuImageComponent:
+@dataclass(frozen=True)
+class Image:
+    content_base64: str
+    mime: str
+
+class ImageComponent:
     @classmethod
-    def render(cls, images: List[SudokuImageSchema], height: Optional[int] = None) -> None:
+    def render(cls, images: List[Image], height: Optional[int] = None) -> None:
         if not images:
             return
 
