@@ -1,5 +1,5 @@
 import itertools
-from typing import List, Optional
+from typing import Optional
 from api.deps.factory_instance import FactoryInstance
 from api.exceptions.sudoku_exceptions import SudokuNotFoundException
 from api.logger import logger
@@ -15,27 +15,26 @@ from core.factories.sudoku_factory import SudokuFactory
 class SudokuService:
     @classmethod
     def get_all(cls, query: SudokuQuerySchema) -> PageSchema[SudokuResponseSchema]:
-        content: List[SudokuModel] = SudokuRepository.get_all(
-            n=query.n,
-            candidate_type=query.candidate_type,
-            inference_succeeded=query.inference_succeeded,
-            page=query.page,
-            size=query.size
-        )
-
-        total_elements: int = SudokuRepository.count(
-            n=query.n,
-            candidate_type=query.candidate_type,
-            inference_succeeded=query.inference_succeeded,
-            inference_succeeded_nth_layer=query.inference_succeeded_nth_layer
-        )
-
         return PageSchema[SudokuResponseSchema](
-            content=[SudokuMapper.to_sudoku_response_schema(x) for x in content],
+            content=[
+                SudokuMapper.to_sudoku_response_schema(model)
+                for model in SudokuRepository.get_all(
+                    n=query.n,
+                    candidate_type=query.candidate_type,
+                    inference_succeeded=query.inference_succeeded,
+                    page=query.page,
+                    size=query.size
+                )
+            ],
             pageable=PageableSchema(
                 page=query.page,
                 size=query.size,
-                total_elements=total_elements
+                total_elements=SudokuRepository.count(
+                    n=query.n,
+                    candidate_type=query.candidate_type,
+                    inference_succeeded=query.inference_succeeded,
+                    inference_succeeded_nth_layer=query.inference_succeeded_nth_layer
+                )
             )
         )
 

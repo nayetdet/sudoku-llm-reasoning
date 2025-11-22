@@ -8,10 +8,13 @@ class SudokuInferenceAnalyticsTableComponent:
     @classmethod
     def render(cls) -> None:
         analytics: List[SudokuInferenceAnalyticsSchema] = SudokuInferenceService.get_analytics()
-        df: pd.DataFrame = cls.__get_dataframe(analytics)
+        if not analytics:
+            st.info("No analytics found.")
+            return
 
-        st.title("📊 Sudoku Analysis Table")
-        st.dataframe(df, hide_index=True, use_container_width=True)
+        df: pd.DataFrame = cls.__get_dataframe(analytics)
+        st.title("📊 Sudoku Inference Analytics")
+        st.dataframe(df, hide_index=True, width="stretch")
 
     @classmethod
     def __get_dataframe(cls, analytics: List[SudokuInferenceAnalyticsSchema]) -> pd.DataFrame:
