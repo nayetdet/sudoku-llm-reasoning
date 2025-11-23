@@ -7,7 +7,7 @@ class SudokuService:
     @classmethod
     def get_all(cls, **filters) -> Tuple[int, List[SudokuSchema]]:
         sudokus: List[SudokuSchema] = []
-        response: requests.Response = requests.get(url=f"{Config.WebUI.API_URL}/v1/sudokus", params=filters)
+        response: requests.Response = requests.get(url=f"{Config.WebUI.API_URL}/v1/sudokus/", params=filters)
         response.raise_for_status()
 
         data: Dict[str, Any] = response.json()

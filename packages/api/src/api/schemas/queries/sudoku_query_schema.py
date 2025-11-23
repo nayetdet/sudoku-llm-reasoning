@@ -7,3 +7,4 @@ class SudokuQuerySchema(BaseQuerySchema):
     candidate_type: Optional[SudokuSimplifiedCandidateType] = None
     inference_succeeded: Optional[bool] = None
     inference_succeeded_nth_layer: Optional[bool] = None
+    inference_has_explanation: Optional[bool] = None
