@@ -1,21 +1,24 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Dict, Any
+from webui.components.filters.sudoku_filter_component import SudokuFilterComponent
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_service import SudokuService
 
 class SudokuTableComponent:
     @classmethod
     def render(cls) -> None:
-        sudokus = SudokuService.get_all_pages()
+        st.title("📊 Sudoku")
+        st.divider()
+
+        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_table")
+        sudokus = SudokuService.get_all_pages(**sudoku_filters)
         if not sudokus:
             st.info("No sudokus found.")
             return
 
         df: pd.DataFrame = cls.__get_dataframe(sudokus)
-        st.title("📊 Sudoku")
-        filtered_df: pd.DataFrame = cls.__filter_dataframe(df)
-        st.dataframe(filtered_df, hide_index=True,  width="stretch")
+        st.dataframe(df, hide_index=True,  width="stretch")
 
     @classmethod
     def __get_dataframe(cls, sudokus: List[SudokuSchema]) -> pd.DataFrame:
@@ -30,16 +33,3 @@ class SudokuTableComponent:
                 "Succeeded (Nth Layer)": sudoku.inference.succeeded_nth_layer if sudoku.inference else "—"
             })
         return pd.DataFrame(rows)
-
-    @classmethod
-    def __filter_dataframe(cls, df: pd.DataFrame) -> pd.DataFrame:
-        candidate_types = sorted(df["Candidate Type"].unique())
-        selected_types = st.multiselect(
-            "Filtrar por tipo de candidato",
-            candidate_types,
-            default=candidate_types,
-            key="sudoku_candidate_filter",
-        )
-        if selected_types:
-            return df[df["Candidate Type"].isin(selected_types)]
-        return df

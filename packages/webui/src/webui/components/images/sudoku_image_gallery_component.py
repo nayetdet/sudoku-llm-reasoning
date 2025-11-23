@@ -1,6 +1,6 @@
 import streamlit as st
 from typing import List, Dict, Any
-from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
+from webui.components.filters.sudoku_filter_component import SudokuFilterComponent
 from webui.schemas.sudoku_image_schema import SudokuImageSchema
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_image_service import SudokuImageService
@@ -11,49 +11,11 @@ class SudokuImageGalleryComponent:
     @classmethod
     def render(cls) -> None:
         st.session_state.setdefault("sudoku_image_gallery_page", 0)
-        st.session_state.setdefault("sudoku_image_gallery_filters_form_key", 0)
-        st.session_state.setdefault("sudoku_image_gallery_filters", {})
-
         st.title("🖼️ Sudoku Image Gallery")
-        with st.expander("Filters", expanded=True):
-            with st.form(f"sudoku_image_gallery_filters_form_{st.session_state.sudoku_image_gallery_filters_form_key}"):
-                filters: Dict[str, Any] = {}
-                col_n, col_candidate_type = st.columns(2)
-                with col_n:
-                    filters["n"] = st.selectbox(
-                        label="Grid Size (N)",
-                        options=[None, 4, 9],
-                        format_func=lambda x: str(x) if x else "All",
-                        index=0
-                    )
+        st.divider()
 
-                with col_candidate_type:
-                    filters["candidate_type"] = st.selectbox(
-                        label="Candidate Type",
-                        options=[None] + [x.value for x in SudokuSimplifiedCandidateType],
-                        format_func=lambda x: SudokuSimplifiedCandidateType(x).display_name if x is not None else "All",
-                        index=0
-                    )
-
-                col_clear, col_apply = st.columns([1, 3])
-                with col_clear:
-                    clear_clicked = st.form_submit_button("Clear 🔃", use_container_width=True)
-
-                with col_apply:
-                    apply_clicked = st.form_submit_button("Apply ✅", use_container_width=True)
-
-            if clear_clicked:
-                st.session_state.sudoku_image_gallery_page = 0
-                st.session_state.sudoku_image_gallery_filters_form_key += 1
-                st.session_state.sudoku_image_gallery_filters = {}
-                st.rerun()
-
-            if apply_clicked:
-                st.session_state.sudoku_image_gallery_page = 0
-                st.session_state.sudoku_image_gallery_filters = filters
-                st.rerun()
-
-        total_sudokus, sudokus = SudokuService.get_all(page=st.session_state.sudoku_image_gallery_page, size=1, **st.session_state.sudoku_image_gallery_filters)
+        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_image_gallery")
+        total_sudokus, sudokus = SudokuService.get_all(page=st.session_state.sudoku_image_gallery_page, size=1, **sudoku_filters)
         if not sudokus:
             st.info("No sudokus found.")
             return
