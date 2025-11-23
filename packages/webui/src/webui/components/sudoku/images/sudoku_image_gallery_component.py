@@ -15,7 +15,7 @@ class SudokuImageGalleryComponent:
         st.title("🖼️ Sudoku Image Gallery")
         st.divider()
 
-        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_image_gallery")
+        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_image_gallery", filters={"n", "candidate_type"})
         total_sudokus, sudokus = SudokuService.get_all(page=st.session_state.sudoku_image_gallery_page, size=1, **sudoku_filters)
         if not sudokus:
             st.info("No sudokus found.")

@@ -29,7 +29,8 @@ class SudokuTableComponent:
                 "N": sudoku.n,
                 "Candidate Type": sudoku.candidate_type.display_name,
                 "Grid": str(sudoku.grid),
-                "Succeeded": sudoku.inference.succeeded if sudoku.inference else "—",
-                "Succeeded (Nth Layer)": sudoku.inference.succeeded_nth_layer if sudoku.inference else "—"
+                "Succeeded": str(sudoku.inference.succeeded) if sudoku.inference else "—",
+                "Succeeded (Nth Layer)": str(sudoku.inference.succeeded_nth_layer) if sudoku.inference else "—",
+                "Explanation": sudoku.inference.explanation if sudoku.inference else "—"
             })
         return pd.DataFrame(rows)
