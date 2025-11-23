@@ -33,7 +33,7 @@ class Sudoku:
         return super().__new__(cls)
 
     def __init__(self, grid: Sequence[Sequence[int]]) -> None:
-        self.__cache: Cache = LRUCache(len(SudokuCandidateType) * len(grid) ** 2 + 1)
+        self.__cache: Cache = LRUCache(len(SudokuCandidateType) * len(grid) ** 2)
         self.__grid: Tuple[Tuple[int, ...], ...] = tuple(tuple(x) for x in grid)
         self.__solutions: Optional[Tuple["Sudoku", ...]] = None
         self.__deduction_chains_1st_layer_consensus: List[List[Optional[List[List[SudokuConsensusDeductionChain]]]]] = [[None] * len(grid) for _ in range(len(grid))]
