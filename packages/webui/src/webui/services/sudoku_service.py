@@ -1,3 +1,4 @@
+import streamlit as st
 import requests
 from typing import List, Tuple, Dict, Any
 from webui.config import Config
@@ -5,6 +6,7 @@ from webui.schemas.sudoku_schema import SudokuSchema
 
 class SudokuService:
     @classmethod
+    @st.cache_data(show_spinner=False)
     def get_all(cls, **filters) -> Tuple[int, List[SudokuSchema]]:
         sudokus: List[SudokuSchema] = []
         response: requests.Response = requests.get(url=f"{Config.WebUI.API_URL}/v1/sudokus/", params=filters)
@@ -20,6 +22,7 @@ class SudokuService:
         return total_sudokus, sudokus
 
     @classmethod
+    @st.cache_data(show_spinner=False)
     def get_all_pages(cls, **filters) -> List[SudokuSchema]:
         page: int = 0
         all_sudokus: List[SudokuSchema] = []

@@ -1,16 +1,13 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Dict, Any
-from webui.components.sudoku.filters.sudoku_filter_component import SudokuFilterComponent
+from webui.components.sudokus.filters.sudoku_filter_component import SudokuFilterComponent
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_service import SudokuService
 
 class SudokuTableComponent:
     @classmethod
     def render(cls) -> None:
-        st.title("📊 Sudoku")
-        st.divider()
-
         sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_table")
         sudokus = SudokuService.get_all_pages(**sudoku_filters)
         if not sudokus:

@@ -2227,6 +2227,7 @@ version = "1.0.0"
 source = { editable = "packages/webui" }
 dependencies = [
     { name = "core" },
+    { name = "matplotlib" },
     { name = "pandas" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -2237,6 +2238,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "core", editable = "packages/core" },
+    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "python-dotenv", specifier = ">=1.2.1" },

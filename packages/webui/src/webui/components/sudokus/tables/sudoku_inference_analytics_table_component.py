@@ -13,7 +13,6 @@ class SudokuInferenceAnalyticsTableComponent:
             return
 
         df: pd.DataFrame = cls.__get_dataframe(analytics)
-        st.title("📊 Sudoku Inference Analytics")
         st.dataframe(df, hide_index=True, width="stretch")
 
     @classmethod
