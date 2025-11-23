@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Dict, Any
+from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from webui.schemas.sudoku_inference_analysis_schema import SudokuInferenceAnalyticsSchema
 from webui.services.sudoku_inference_service import SudokuInferenceService
 
@@ -30,4 +31,8 @@ class SudokuInferenceAnalyticsTableComponent:
                 "Unprocessed (%)": f"{(analytic.total_unprocessed / total) * 100:.2f}%",
                 "Total": analytic.total
             })
-        return pd.DataFrame(rows)
+
+        df: pd.DataFrame = pd.DataFrame(rows)
+        df["Candidate Type"] = pd.Categorical(df["Candidate Type"], categories=[x.display_name for x in SudokuSimplifiedCandidateType], ordered=True)
+        df = df.sort_values(by=["N", "Candidate Type"], ascending=[True, True])
+        return df
