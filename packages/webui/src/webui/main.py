@@ -1,7 +1,7 @@
 import streamlit as st
-from webui.components.images.sudoku_image_gallery_component import SudokuImageGalleryComponent
-from webui.components.tables.sudoku_inference_analytics_table_component import SudokuInferenceAnalyticsTableComponent
-from webui.components.tables.sudoku_table_component import SudokuTableComponent
+from webui.components.sudoku.images.sudoku_image_gallery_component import SudokuImageGalleryComponent
+from webui.components.sudoku.tables.sudoku_inference_analytics_table_component import SudokuInferenceAnalyticsTableComponent
+from webui.components.sudoku.tables.sudoku_table_component import SudokuTableComponent
 
 st.set_page_config(page_title="Sudoku LLM Reasoning")
 st.title("Sudoku LLM Reasoning: WebUI")

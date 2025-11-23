@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Dict, Any
-from webui.components.filters.sudoku_filter_component import SudokuFilterComponent
+from webui.components.sudoku.filters.sudoku_filter_component import SudokuFilterComponent
 from webui.schemas.sudoku_schema import SudokuSchema
 from webui.services.sudoku_service import SudokuService
 
