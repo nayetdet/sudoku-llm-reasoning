@@ -14,6 +14,7 @@ dependencies = [
     "core",
     "python-dotenv>=1.2.1",
     "pandas>=2.3.3",
+    "matplotlib>=3.10.7",
 ]
 
 [project.scripts]

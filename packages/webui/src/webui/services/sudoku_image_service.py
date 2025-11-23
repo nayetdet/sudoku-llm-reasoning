@@ -1,3 +1,4 @@
+import streamlit as st
 import requests
 from typing import List, Tuple, Dict, Any
 from webui.config import Config
@@ -5,6 +6,7 @@ from webui.schemas.sudoku_image_schema import SudokuImageSchema
 
 class SudokuImageService:
     @classmethod
+    @st.cache_data(show_spinner=False)
     def get_all(cls, sudoku_id: int, **filters) -> Tuple[int, List[SudokuImageSchema]]:
         images: List[SudokuImageSchema] = []
         response: requests.Response = requests.get(url=f"{Config.WebUI.API_URL}/v1/sudokus/{sudoku_id}/images", params=filters)
@@ -20,6 +22,7 @@ class SudokuImageService:
         return total_images, images
 
     @classmethod
+    @st.cache_data(show_spinner=False)
     def get_all_pages(cls, sudoku_id: int) -> List[SudokuImageSchema]:
         page: int = 0
         all_images: List[SudokuImageSchema] = []
