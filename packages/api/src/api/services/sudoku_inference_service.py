@@ -25,8 +25,9 @@ class SudokuInferenceService:
                 SudokuInferenceMapper.to_inference_analytics_response_schema(
                     n=n,
                     candidate_type=candidate_type,
-                    total_planned=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=True, inference_succeeded_nth_layer=True),
-                    total_beyond=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=False, inference_succeeded_nth_layer=True),
+                    total_predicted=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=True, inference_succeeded_nth_layer=True),
+                    total_beyond=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=False, inference_succeeded_nth_layer=True, inference_succeeded_and_unique_nth_layer=True),
+                    total_beyond_non_unique=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=False, inference_succeeded_nth_layer=True, inference_succeeded_and_unique_nth_layer=False),
                     total_hallucinations=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=False, inference_succeeded_nth_layer=False, inference_has_explanation=True),
                     total_missed=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=False, inference_succeeded_nth_layer=False, inference_has_explanation=False),
                     total_unprocessed=SudokuRepository.count(n=n, candidate_type=candidate_type, inference_succeeded=null(), inference_succeeded_nth_layer=null()),
@@ -57,7 +58,9 @@ class SudokuInferenceService:
                     logger.error(f"{n}x{n} grid | {candidate_type.name}: LLM inference failed for sudoku_id={sudoku_model.id}")
                     continue
 
-                inference_succeeded = inference_succeeded_nth_layer = False
+                inference_succeeded: bool = False
+                inference_succeeded_nth_layer: bool = False
+                inference_succeeded_and_unique_nth_layer: bool = False
                 if llm_candidate is not None:
                     candidates: Tuple[SudokuCandidate, ...] = ()
                     match candidate_type:
@@ -65,8 +68,8 @@ class SudokuInferenceService:
                         case SudokuSimplifiedCandidateType.ZEROTH_LAYER_HIDDEN_SINGLES: candidates = sudoku.candidates_0th_layer_hidden_singles
                         case SudokuSimplifiedCandidateType.FIRST_LAYER_CONSENSUS: candidates = sudoku.candidates_1st_layer_consensus
                     inference_succeeded = inference_succeeded_nth_layer = llm_candidate.candidate in candidates
-                    if not inference_succeeded:
-                        inference_succeeded_nth_layer = llm_candidate.candidate in sudoku.candidates_nth_layer
+                    inference_succeeded_nth_layer = inference_succeeded or llm_candidate.candidate in sudoku.candidates_nth_layer
+                    inference_succeeded_and_unique_nth_layer = inference_succeeded_nth_layer and len(sudoku.candidate_values_nth_layer_at_position(*llm_candidate.position)) == 1
 
                 generated_inferences += 1
                 logger.info(f"{n}x{n} grid | {candidate_type.name}: sudoku_id={sudoku_model.id} succeeded={inference_succeeded} succeeded_nth_layer={inference_succeeded_nth_layer} ({generated_inferences}/{request.target_count})")
@@ -75,6 +78,7 @@ class SudokuInferenceService:
                         sudoku_id=sudoku_model.id,
                         succeeded=inference_succeeded,
                         succeeded_nth_layer=inference_succeeded_nth_layer,
+                        succeeded_and_unique_nth_layer=inference_succeeded_and_unique_nth_layer,
                         explanation=llm_candidate.explanation if llm_candidate is not None else None
                     )
                 )

@@ -15,6 +15,7 @@ class SudokuInference(SQLModel, table=True):
     )
     succeeded: bool = Field(sa_column=Column(Boolean, nullable=False))
     succeeded_nth_layer: bool = Field(sa_column=Column(Boolean, nullable=False))
+    succeeded_and_unique_nth_layer: bool = Field(sa_column=Column(Boolean, nullable=False))
     explanation: Optional[str] = Field(sa_column=Column(Text, nullable=True))
     sudoku: "Sudoku" = Relationship(
         back_populates="inference",

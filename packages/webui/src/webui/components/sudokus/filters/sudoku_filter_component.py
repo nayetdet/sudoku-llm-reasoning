@@ -30,6 +30,12 @@ class SudokuFilterComponent:
                 options=[None, True, False],
                 format_func=lambda x: str(x) if x is not None else "All"
             ),
+            "inference_succeeded_and_unique_nth_layer": Filter(
+                key="inference_succeeded_and_unique_nth_layer",
+                label="Inference Succeeded (Unique in Nth Layer)",
+                options=[None, True, False],
+                format_func=lambda x: str(x) if x is not None else "All"
+            ),
             "inference_has_explanation": Filter(
                 key="inference_has_explanation",
                 label="Inference Has Explanation",

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import List
+from typing import List, Dict, Any
 from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidateType
 from webui.schemas.sudoku_inference_analysis_schema import SudokuInferenceAnalyticsSchema
 from webui.services.sudoku_inference_service import SudokuInferenceService
@@ -15,21 +15,22 @@ class SudokuInferenceAnalyticsChartComponent:
             return
 
         df: pd.DataFrame = cls.__get_dataframe(analytics)
-        metrics: List[str] = [
-            "total_planned",
-            "total_beyond",
-            "total_hallucinations",
-            "total_missed",
-            "total_unprocessed"
-        ]
+        metrics: Dict[str, Any] = {
+            "total_predicted": "Predicted",
+            "total_beyond": "Beyond",
+            "total_beyond_non_unique": "Beyond (Non-unique)",
+            "total_hallucinations": "Hallucinations",
+            "total_missed": "Missed",
+            "total_unprocessed": "Unprocessed"
+        }
 
         fig, ax = plt.subplots(figsize=(8, 5))
-        for i, metric in enumerate(metrics):
+        for i, (metric_key, metric_value) in enumerate(metrics.items()):
             bars = ax.bar(
                 x=[x + i * bar_width for x in range(len(df))],
-                height=df[metric],
+                height=df[metric_key],
                 width=bar_width,
-                label=metric.replace("total_", "").capitalize()
+                label=metric_value
             )
 
             for bar in bars:
@@ -37,7 +38,7 @@ class SudokuInferenceAnalyticsChartComponent:
                 if height > 0:
                     ax.text(
                         x=bar.get_x() + bar.get_width() / 2,
-                        y=height + max(df[metric]) * 0.01,
+                        y=height + max(df[metric_key]) * 0.01,
                         s=f"{int(height)}",
                         ha="center",
                         va="bottom",

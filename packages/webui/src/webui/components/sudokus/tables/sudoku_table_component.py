@@ -15,7 +15,7 @@ class SudokuTableComponent:
             return
 
         df: pd.DataFrame = cls.__get_dataframe(sudokus)
-        st.dataframe(df, hide_index=True,  width="stretch")
+        st.dataframe(df, width="stretch")
 
     @classmethod
     def __get_dataframe(cls, sudokus: List[SudokuSchema]) -> pd.DataFrame:
@@ -26,8 +26,9 @@ class SudokuTableComponent:
                 "N": sudoku.n,
                 "Candidate Type": sudoku.candidate_type.display_name,
                 "Grid": str(sudoku.grid),
-                "Succeeded": str(sudoku.inference.succeeded) if sudoku.inference else "—",
-                "Succeeded (Nth Layer)": str(sudoku.inference.succeeded_nth_layer) if sudoku.inference else "—",
-                "Explanation": sudoku.inference.explanation if sudoku.inference else "—"
+                "Inference Succeeded": str(sudoku.inference.succeeded) if sudoku.inference else "—",
+                "Inference Succeeded (Nth Layer)": str(sudoku.inference.succeeded_nth_layer) if sudoku.inference else "—",
+                "Inference Succeeded (Unique in Nth Layer)": str(sudoku.inference.succeeded_and_unique_nth_layer) if sudoku.inference else "—",
+                "Inference Explanation": sudoku.inference.explanation if sudoku.inference else "—"
             })
         return pd.DataFrame(rows)

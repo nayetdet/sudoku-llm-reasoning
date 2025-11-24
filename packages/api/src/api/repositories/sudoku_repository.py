@@ -86,6 +86,7 @@ class SudokuRepository:
             grid: Optional[List[List[int]]] = None,
             inference_succeeded: Union[Optional[bool], Null] = None,
             inference_succeeded_nth_layer: Union[Optional[bool], Null] = None,
+            inference_succeeded_and_unique_nth_layer: Union[Optional[bool], Null] = None,
             inference_has_explanation: Optional[bool] = None,
             has_images: Optional[bool] = None,
             page: Optional[int] = None,
@@ -101,6 +102,8 @@ class SudokuRepository:
             stmt = stmt.where(SudokuInference.succeeded == inference_succeeded if not isinstance(inference_succeeded, Null) else Sudoku.inference == null())
         if inference_succeeded_nth_layer is not None:
             stmt = stmt.where(SudokuInference.succeeded_nth_layer == inference_succeeded_nth_layer if not isinstance(inference_succeeded_nth_layer, Null) else Sudoku.inference == null())
+        if inference_succeeded_and_unique_nth_layer is not None:
+            stmt = stmt.where(SudokuInference.succeeded_and_unique_nth_layer == inference_succeeded_and_unique_nth_layer if not isinstance(inference_succeeded_and_unique_nth_layer, Null) else Sudoku.inference == null())
         if inference_has_explanation is not None:
             stmt = stmt.where(SudokuInference.explanation != null() if inference_has_explanation else SudokuInference.explanation == null())
         if has_images is not None:

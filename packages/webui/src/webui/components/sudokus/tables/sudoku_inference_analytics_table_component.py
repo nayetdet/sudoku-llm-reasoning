@@ -24,8 +24,9 @@ class SudokuInferenceAnalyticsTableComponent:
             rows.append({
                 "N": analytic.n,
                 "Candidate Type": analytic.candidate_type.display_name,
-                "Planned (%)": f"{(analytic.total_planned / total) * 100:.2f}%",
+                "Predicted (%)": f"{(analytic.total_predicted / total) * 100:.2f}%",
                 "Beyond (%)": f"{(analytic.total_beyond / total) * 100:.2f}%",
+                "Beyond (Non-unique) (%)": f"{(analytic.total_beyond_non_unique / total) * 100:.2f}%",
                 "Hallucinations (%)": f"{(analytic.total_hallucinations / total) * 100:.2f}%",
                 "Missed (%)": f"{(analytic.total_missed / total) * 100:.2f}%",
                 "Unprocessed (%)": f"{(analytic.total_unprocessed / total) * 100:.2f}%",

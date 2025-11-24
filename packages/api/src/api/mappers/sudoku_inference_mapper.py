@@ -6,11 +6,12 @@ from core.enums.sudoku_simplified_candidate_type import SudokuSimplifiedCandidat
 
 class SudokuInferenceMapper:
     @classmethod
-    def to_inference(cls, sudoku_id: int, succeeded: bool, succeeded_nth_layer: bool, explanation: Optional[str]) -> SudokuInferenceModel:
+    def to_inference(cls, sudoku_id: int, succeeded: bool, succeeded_nth_layer: bool, succeeded_and_unique_nth_layer: bool, explanation: Optional[str]) -> SudokuInferenceModel:
         return SudokuInferenceModel(
             sudoku_id=sudoku_id,
             succeeded=succeeded,
             succeeded_nth_layer=succeeded_nth_layer,
+            succeeded_and_unique_nth_layer=succeeded_and_unique_nth_layer,
             explanation=explanation
         )
 
@@ -20,6 +21,7 @@ class SudokuInferenceMapper:
             id=inference.id,
             succeeded=inference.succeeded,
             succeeded_nth_layer=inference.succeeded_nth_layer,
+            succeeded_and_unique_nth_layer=inference.succeeded_and_unique_nth_layer,
             explanation=inference.explanation
         )
 
@@ -28,8 +30,9 @@ class SudokuInferenceMapper:
             cls,
             n: int,
             candidate_type: SudokuSimplifiedCandidateType,
-            total_planned: int,
+            total_predicted: int,
             total_beyond: int,
+            total_beyond_non_unique: int,
             total_hallucinations: int,
             total_missed: int,
             total_unprocessed: int,
@@ -38,8 +41,9 @@ class SudokuInferenceMapper:
         return SudokuInferenceAnalyticsResponseSchema(
             n=n,
             candidate_type=candidate_type,
-            total_planned=total_planned,
+            total_predicted=total_predicted,
             total_beyond=total_beyond,
+            total_beyond_non_unique=total_beyond_non_unique,
             total_hallucinations=total_hallucinations,
             total_missed=total_missed,
             total_unprocessed=total_unprocessed,

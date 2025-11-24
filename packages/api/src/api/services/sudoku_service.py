@@ -22,6 +22,8 @@ class SudokuService:
                     n=query.n,
                     candidate_type=query.candidate_type,
                     inference_succeeded=query.inference_succeeded,
+                    inference_succeeded_nth_layer=query.inference_succeeded_nth_layer,
+                    inference_succeeded_and_unique_nth_layer=query.inference_succeeded_and_unique_nth_layer,
                     inference_has_explanation=query.inference_has_explanation,
                     page=query.page,
                     size=query.size
@@ -35,6 +37,7 @@ class SudokuService:
                     candidate_type=query.candidate_type,
                     inference_succeeded=query.inference_succeeded,
                     inference_succeeded_nth_layer=query.inference_succeeded_nth_layer,
+                    inference_succeeded_and_unique_nth_layer=query.inference_succeeded_and_unique_nth_layer,
                     inference_has_explanation=query.inference_has_explanation
                 )
             )
