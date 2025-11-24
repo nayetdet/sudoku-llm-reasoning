@@ -1,4 +1,4 @@
-# Sudoku LLM Reasoning — Relatório explicativo
+# Sudoku LLM Reasoning — README
 
 ## Tema
 
