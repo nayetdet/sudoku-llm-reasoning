@@ -12,7 +12,7 @@ class SudokuImageGalleryComponent:
     @classmethod
     def render(cls) -> None:
         st.session_state.setdefault("sudoku_image_gallery_page", 0)
-        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_image_gallery", filters={"n", "candidate_type"})
+        sudoku_filters: Dict[str, Any] = SudokuFilterComponent.render(session_key_prefix="sudoku_image_gallery")
         total_sudokus, sudokus = SudokuService.get_all(page=st.session_state.sudoku_image_gallery_page, size=1, **sudoku_filters)
         if not sudokus:
             st.info("No sudokus found.")
