@@ -159,7 +159,7 @@ class Sudoku:
             return set()
 
         n: int = len(self)
-        return set(range(1, n + 1)) - (set(self.grid[i]) | set(self.grid_columns[j]) | set(self.grid_block_at_position(i, j)))
+        return set(range(1, n + 1)) - set(self.grid[i]) - set(self.grid_columns[j]) - set(self.grid_block_at_position(i, j))
 
     @cachedmethod(lambda self: self.__cache, key=lambda self, i, j: hashkey(i, j, candidate_type=SudokuCandidateType.ZEROTH_LAYER_NAKED_SINGLES))
     def candidate_values_0th_layer_naked_singles_at_position(self, i: int, j: int) -> Set[int]:
